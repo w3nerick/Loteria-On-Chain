@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Verificar repositorio (enlaces, imports, baraja, privacidad)
+        run: npm run check
+
+      - name: Pruebas (protocolo, juego, salas de 100 y empates)
+        run: npm test
+
+      - name: Compilar (un solo archivo)
+        run: npm run build
+
+      - name: Guardar el build
+        uses: actions/upload-artifact@v4
+        with:
+          name: loteria-en-cadena-dist
+          path: dist/index.html
+          retention-days: 14
