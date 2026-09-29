@@ -36,7 +36,7 @@ Más: [portada](docs/img/01-portada-escritorio.png) · [tableta](docs/img/08-tab
 - **Pantalla del cantor** en three.js: mazo, carta que vuela y gira, tablero de «ya salieron», papel picado,
   foquitos, confeti y fuegos artificiales.
 - **Tabla 3D en el teléfono**: tocas la carta cantada y cae un frijolito (o una corcholata).
-- Figuras: chorro, cuatro esquinas, centrito y tabla llena.
+- Figuras: **tabla llena** (la de por defecto: gana quien llena toda su tabla), chorro, cuatro esquinas y centrito.
 - **Juego limpio verificable**: la baraja se sella con un compromiso SHA-256 y las tablas se registran con
   un hash antes de empezar.
 - **Modo práctica** contra la compu y **modo demostración** con jugadores simulados (27, o 100 para probar
@@ -52,7 +52,7 @@ Más: [portada](docs/img/01-portada-escritorio.png) · [tableta](docs/img/08-tab
    escriben el código). Cada tabla queda registrada con el cantor.
 3. Cuando estén listos: **¡Corre y se va!** La voz del cantor lee el verso y el nombre de cada carta (si el
    equipo tiene voces en español).
-4. Quien completa la figura toca **¡Lotería!**; la pantalla verifica la tabla sola y celebra.
+4. Quien completa la figura (por defecto, **toda su tabla**) toca **¡Lotería!**; la pantalla verifica la tabla sola y celebra.
 5. **Nueva ronda** regresa las cartas al mazo; los teléfonos se registran solos.
 
 Atajos del cantor: `Espacio` pausa · `→` siguiente carta · `V` verificar tabla · `F` pantalla completa ·

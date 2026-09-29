@@ -41,6 +41,10 @@ export class App {
     this.view = null;
     this._homeRO?.disconnect();
     this._homeRO = null;
+    this._offChip?.();
+    this._offChip = null;
+    this._offDiag?.();
+    this._offDiag = null;
     this._offRooms?.();
     this._offRooms = null;
     this.ui.replaceChildren();
@@ -56,9 +60,24 @@ export class App {
     if (this.stage.active !== this.homeScene) this.stage.setScene(this.homeScene);
   }
 
+  // Chip de conexión: en modo Host refleja si ya está lista la cuenta de publicación
   netChip() {
-    if (this.mode === 'host') return h('span', { class: 'chip' }, h('span', { class: 'dot' }), 'Conectado al Statement Store de Polkadot');
-    return h('span', { class: 'chip warn' }, h('span', { class: 'dot' }), `Modo demostración · ${whyLocal(this.t)}`);
+    if (this.mode !== 'host') {
+      return h('span', { class: 'chip warn' }, h('span', { class: 'dot' }), `Modo demostración · ${whyLocal(this.t)}`);
+    }
+    const chip = h('span', { class: 'chip' });
+    const paint = () => {
+      const st = this.t.status;
+      chip.className = `chip${st === 'warming' ? ' warn' : st === 'problem' ? ' bad' : ''}`;
+      chip.replaceChildren(
+        h('span', { class: 'dot' }),
+        st === 'warming' ? 'Conectado · activando tu permiso de publicación…' : st === 'problem' ? 'Conectado, pero sin permiso de publicación (ver Diagnóstico)' : 'Conectado al Statement Store de Polkadot',
+      );
+    };
+    paint();
+    this._offChip?.();
+    this._offChip = this.t.onStatus?.(paint);
+    return chip;
   }
 
   // --- portada ----------------------------------------------------------------
@@ -237,7 +256,7 @@ export class App {
     this.useHomeScene();
     const engine = new CantorEngine({ transport: this.t, storage: this.storage });
     const saved = await engine.loadSaved();
-    let pattern = saved?.pattern || 'c';
+    let pattern = saved?.pattern || CONFIG.defaultPattern;
     let speed = saved?.speed || CONFIG.defaultSpeed;
     const nameIn = h('input', { class: 'input', id: 'nombre-sala', maxlength: '24', value: saved?.roomName || CONFIG.defaultRoomName, 'aria-label': 'Nombre de la sala' });
     const patBox = h('div', { class: 'patterns', role: 'group', 'aria-label': 'Figura para ganar' });
@@ -286,7 +305,7 @@ export class App {
       h('div', { class: 'field' }, h('label', { for: 'nombre-sala' }, 'Nombre de la sala'), nameIn),
       h('div', { class: 'field' }, h('span', { class: 'label' }, 'Figura para ganar'), patBox),
       h('div', { class: 'field' }, h('label', { for: 'velocidad' }, 'Tiempo entre cartas: ', speedOut), speedIn),
-      h('div', { class: 'hint' }, icon('users', 20), h('span', {}, 'Salas grandes: el «chorro» suele caer hacia la carta 12 (con un empate de dos en 1 de cada 5 rondas); «tabla llena» tarda cerca de la carta 43. Los empates se reparten solos, hasta 3 ganadores.')),
+      h('div', { class: 'hint' }, icon('users', 20), h('span', {}, 'Por defecto gana quien llena toda su tabla: con 60–100 jugadores suele caer hacia la carta 43 (~6 min a 8 s) y en 1 de cada 5 rondas hay empate de dos. El «chorro» cae hacia la carta 12. Los empates se reparten solos, hasta 3 ganadores.')),
       h('div', { class: 'row-end' },
         h('button', { class: 'btn btn-ghost', onclick: () => { engine.destroy(); this.showHome(); } }, '‹ Volver'),
         h('button', { class: 'btn btn-primary btn-big', onclick: open }, 'Abrir sala nueva'),

@@ -159,7 +159,7 @@ export async function detectHost(timeoutMs = 6000) {
     await new Promise((r) => setTimeout(r, 150));
     inside = host.isInsideContainerSync();
   }
-  diag.steps.push({ name: '¿Estás dentro de Polkadot App?', ok: inside, ms: 0, detail: inside ? '' : 'no se detectó un contenedor (¿abriste el enlace de dev-dot.li en el navegador?)' });
+  diag.steps.push({ name: '¿Estás dentro de Polkadot App?', state: inside ? 'ok' : 'fail', ok: inside, ms: 0, detail: inside ? '' : 'no se detectó un contenedor (¿abriste el enlace de dev-dot.li en el navegador?)' });
   if (!inside) return false;
   const conn = await step(
     'Canal con el Host',
@@ -206,7 +206,7 @@ export async function createTransport({ forceLocal = false } = {}) {
         return made.value;
       }
     }
-    const failed = [...diag.steps].reverse().find((x) => !x.ok);
+    const failed = [...diag.steps].reverse().find((x) => x.ok === false);
     diag.reason = failed ? `${failed.name}: ${failed.detail || 'falló'}` : 'sin Host';
   } else {
     diag.reason = __PREVIEW__ ? 'compilación de demostración' : null;

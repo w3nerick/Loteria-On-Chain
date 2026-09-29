@@ -53,6 +53,8 @@ export class PlayerView {
       this.renderReady();
     });
     on('net', () => this.renderStatus());
+    const offStatus = this.e.t.onStatus?.(() => this.renderStatus());
+    if (offStatus) this.offs.push(offStatus);
     on('tabla', () => {
       this.scene.setTabla(this.e.tabla, this.e.code, true);
       this.renderStatus();
@@ -171,7 +173,8 @@ export class PlayerView {
     } else if (!e.netOk) {
       msg += ' · sin conexión: si ganas, enséñale este código al cantor';
       cls = 'bad';
-    } else if (st.phase === 'P' && st.called.length > 0) msg += ' · llegaste con la ronda empezada';
+    } else if (e.t.status === 'warming') msg += ' · activando tu permiso de publicación (la primera vez tarda ~10 s)…';
+    else if (st.phase === 'P' && st.called.length > 0) msg += ' · llegaste con la ronda empezada';
     else msg += ' · registrando…';
     this.el.status.className = `p-status ${cls}`;
     this.el.status.replaceChildren(h('span', { class: 'dot' }), msg);
@@ -183,6 +186,7 @@ export class PlayerView {
     const e = this.e;
     if (e.acked) el.replaceChildren(icon('check', 16), ' Tu tabla ', h('b', {}, e.code), ' quedó registrada con el cantor.');
     else if (!e.netOk) el.replaceChildren('Sin conexión. Si ganas, enséñale al cantor el código ', h('b', {}, e.code));
+    else if (e.t.status === 'warming') el.replaceChildren(h('span', { class: 'spin' }), 'Activando tu permiso de publicación (la primera vez tarda ~10 s)…');
     else el.replaceChildren(h('span', { class: 'spin' }), 'Registrando tu tabla con el cantor…');
   }
 

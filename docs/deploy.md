@@ -68,6 +68,8 @@ Medido en un iPhone (Polkadot App iOS) y en Polkadot Desktop 0.1.3: hablan el **
 - La versión 0.23 del host (códec 3) **no** funciona con la Polkadot App actual.
 - Subir de versión solo después de medir el códec del Host en un teléfono real. La pantalla
   `#diagnostico` de la app muestra la versión del SDK, el códec y qué paso del arranque falló.
+- Tras conectar, la app pide el permiso de publicación y hace un primer envío mínimo **en segundo plano**;
+  el chip muestra «activando…» hasta que queda lista (~10 s en un iPhone; en Desktop hay que aprobar un cuadro).
 - Si el Host no contesta, la app ya no se queda cargando: a los pocos segundos entra en modo demostración
   y dice por qué.
 

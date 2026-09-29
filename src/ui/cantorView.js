@@ -55,6 +55,8 @@ export class CantorView {
     on('lobby', () => this.onLobby());
     on('config', () => this.renderSide());
     on('net', (n) => this.renderNet(n));
+    const offStatus = this.e.t.onStatus?.(() => this.renderNet({ ok: this.e.netOk }));
+    if (offStatus) this.offs.push(offStatus);
     on('deckEmpty', () => toast('Ya salieron las 54 cartas. Empieza una ronda nueva.', 'warn', 5000));
     this._key = (ev) => this.onKey(ev);
     window.addEventListener('keydown', this._key);
@@ -220,7 +222,20 @@ export class CantorView {
   renderNet(n) {
     const ok = n?.ok !== false;
     if (this.app.mode === 'host') {
-      this.el.net.replaceChildren(h('span', { class: `chip${ok ? '' : ' bad'}` }, h('span', { class: 'dot' }), ok ? 'Statement Store' : `Sin conexión: ${n?.error || 'reintentando'}`));
+      const st = this.e.t.status;
+      let cls = 'chip';
+      let text = 'Statement Store';
+      if (!ok) {
+        cls = 'chip bad';
+        text = `Sin conexión: ${n?.error || 'reintentando'}`;
+      } else if (st === 'warming') {
+        cls = 'chip warn';
+        text = 'Statement Store · activando permiso…';
+      } else if (st === 'problem') {
+        cls = 'chip bad';
+        text = 'Sin permiso de publicación (ver Diagnóstico)';
+      }
+      this.el.net.replaceChildren(h('span', { class: cls }, h('span', { class: 'dot' }), text));
     } else {
       this.el.net.replaceChildren(h('span', { class: 'chip warn', title: whyLocal(this.app.t) }, h('span', { class: 'dot' }), 'Modo demostración'));
     }

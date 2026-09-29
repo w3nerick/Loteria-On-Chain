@@ -33,12 +33,27 @@ Lo que garantiza el código:
    la primera carta (el cantor lo muestra: *Registrando tablas… 17 de 20*).
 3. **30+** si se puede. Si algún teléfono se queda en «registrando…» más de 15 s, anota modelo y red.
 
+## El permiso de publicación (la primera vez)
+
+Cada teléfono necesita que el Host le asigne una cuenta de publicación en el Statement Store. Medido en un
+iPhone: la **primera** publicación tarda ~10 s y después es instantánea. La app lo pide al abrirse, en segundo
+plano, y lo dice en el chip («activando tu permiso de publicación…»).
+
+- **Pide a la gente que abra la app 2–3 minutos antes** de empezar y espere a ver el chip en verde.
+- **Cantor en Polkadot Desktop:** la primera vez aparece un **cuadro de aprobación** dentro de Desktop (y puede
+  pedir confirmar también en el celular emparejado). Hay que aprobarlo *antes* de abrir la sala; se recuerda
+  después. Sin aprobarlo, Desktop no publica nada.
+- La pantalla **Diagnóstico** de la app muestra el estado (`Permiso: Allocated`, `Cuenta de publicación: lista`)
+  y qué paso está esperando.
+- Sin medir todavía: cuánto tarda con 100 teléfonos pidiéndolo a la vez (ver el piloto).
+
 ## La noche
 
 - El cantor en **red cableada** o con su propio hotspot, no en el mismo Wi-Fi saturado que el público.
 - Abre la sala y pide que entren **cuando ya esté proyectado el código**, no antes: así no hay dos salas.
-- Figuras para muchos jugadores: **chorro** cae hacia la carta 12 (~1.5 min a 8 s) con un empate de dos
-  en 1 de cada 5 rondas; **tabla llena** hacia la 43 (~6 min). Hasta 3 empates se reconocen solos.
+- La figura por defecto es **tabla llena**: gana quien llena toda su tabla, hacia la carta 43 (~6 min a 8 s);
+  con 100 jugadores hay empate de dos en 1 de cada 5 rondas y de cuatro o más en menos del 3 %. El **chorro**
+  cae hacia la carta 12 (~1.5 min). Hasta 3 empates se reconocen solos.
 - **Nueva ronda** hace que todos los teléfonos se vuelvan a registrar solos; el cantor espera a que vuelva casi toda la sala.
 - Si un teléfono muestra «sin conexión», al ganar enseña el código de la tabla y el cantor lo
   verifica con **Verificar tabla** (tecla `V`).

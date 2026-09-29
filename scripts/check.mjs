@@ -210,6 +210,7 @@ await check('Configuración', async ({ fail }) => {
     fail(`CONFIG.dotName inválido: «${CONFIG.dotName}» (vacío o algo como loteriamexicana.dot, mínimo 9 caracteres)`);
   }
   if (!(CONFIG.defaultSpeed >= 3 && CONFIG.defaultSpeed <= 30)) fail('CONFIG.defaultSpeed fuera de 3–30 s');
+  if (!['c', 'e', 'm', 'f'].includes(CONFIG.defaultPattern)) fail(`CONFIG.defaultPattern inválido: «${CONFIG.defaultPattern}» (c, e, m o f)`);
 });
 
 // --- informe ------------------------------------------------------------------------------------------------
