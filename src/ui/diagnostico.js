@@ -30,6 +30,7 @@ function report(app, extra = []) {
     `Modo: ${host ? 'Statement Store (Host)' : `demostración — ${whyLocal(app.t)}`}`,
     ...(host ? [`Cuenta de publicación: ${STATUS[app.t.status] ?? '?'} · permiso: ${diag.allowance ?? 'pendiente'}`] : []),
     ...(diag.reason ? [`Motivo: ${diag.reason}`] : []),
+    ...(app.stage ? [app.stage.report()] : ['3D: sin WebGL (se usa la tabla en 2D)']),
     'Arranque:',
     ...diag.steps.map(stepLine),
     ...(host && waiting

@@ -3,3 +3,4 @@ dist/
 dist-preview/
 .DS_Store
 *.log
+*.car

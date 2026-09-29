@@ -369,9 +369,9 @@ export class PlayerScene {
     const { top: T, bottom: B, left: L = 0, right: R = 0 } = this.insets;
     const avail = Math.max(120, H - T - B);
     const availW = Math.max(120, W - L - R);
-    const margin = Math.min(14, availW * 0.03);
+    const margin = Math.min(8, availW * 0.02);
     const tan = Math.tan((FOV * Math.PI) / 360);
-    const bh = BH * Math.cos(TILT) * 1.1; // holgura por la perspectiva del borde cercano
+    const bh = BH * Math.cos(TILT) * (L + R > 0 ? 1.1 : 1.03); // holgura por la perspectiva (más en modo ancho)
     const d1 = (BW * H) / ((availW - 2 * margin) * 2 * tan);
     const d2 = (bh * H) / ((avail - 2 * margin) * 2 * tan);
     const D = Math.max(d1, d2);
