@@ -1,37 +1,59 @@
 # Publicar
 
-Estado: **sin publicar**. Esta guía recoge el flujo del proyecto original (CLI de Playground); revisa
-cada comando con `pg --help` antes del evento, porque no se ha ejecutado desde este repositorio.
+Destino: **Products Devnet** (Paseo Asset Hub) con `pad`, el mismo flujo con el que se publicaron otras
+apps del piloto. Nombre: **`loteria-on-chain.dot`** →
+[`https://loteria-on-chain.dev-dot.li`](https://loteria-on-chain.dev-dot.li) en cualquier navegador y
+`loteria-on-chain.dot` dentro de Polkadot App / Desktop.
 
 ## Requisitos
 
-- Node 20 o más reciente (`.nvmrc` fija 22).
-- El CLI de Playground ([guía oficial](https://docs.polkadot.com/apps/quick-start/)) y una Polkadot App
-  para iniciar sesión.
+- **Node 22 o más** (`.nvmrc`). Con Node 20 `pad` falla al arrancar sin decir por qué.
+- `pad` 0.16.7 o más y `dotns` 0.9.5 o más:
+  `npm i -g @polkadot-community-foundation/polkadot-app-deploy@latest @polkadot-community-foundation/dotns-cli@latest`
+- Polkadot App en el celular (para `pad login`).
+- Una **Terminal.app normal**: `pad` puede pedir confirmar con `Y`, y en terminales integradas de editores o
+  asistentes el proceso corre en segundo plano y la tecla nunca llega.
+
+## El nombre
+
+Regla de DotNS v2: los dígitos finales deben ser 0 o 2 y la **base** (sin esos dígitos) decide qué pide.
+`loteria-on-chain` tiene base de 16 caracteres y ningún dígito: **registro abierto**, sin proof of
+personhood. Se comprueba con:
+
+```bash
+dotns lookup name loteria-on-chain --env devnet     # owner 0x000… = libre
+```
 
 ## Pasos
 
 ```bash
-npm ci
-npm run check && npm test          # el CI hace lo mismo
-pg login                           # escanea el QR con tu Polkadot App (interactivo)
-pg deploy --domain loteriamexicana --playground --tag gaming
+pad login                    # QR con Polkadot App; el handshake puede tardar minutos en el devnet
+pad whoami --env devnet      # ¿quedó la sesión?
+npm ci && npm run check && npm test
+npm run deploy               # = npm run build && PAD_ENV=devnet pad dist loteria-on-chain.dot
 ```
 
-- El nombre necesita **9 caracteres o más** para quedar abierto a cualquiera (de 6 a 8 piden Proof of
-  Personhood).
-- En TestNet el dominio queda como `loteriamexicana.paseo`.
-- `npm run build` genera `dist/index.html` (un solo archivo, ~1 MB, ~380 KB comprimido) con el SDK de
-  Polkadot incluido; `npm run build:preview` genera la variante sin SDK (solo modo demostración).
+- `PAD_ENV=devnet` es **obligatorio**: sin él `pad` publica en otra red.
+- En el modo por defecto (solo testnet) un worker local sube a Bulletin, registra el nombre y paga; al final
+  **traspasa el nombre** a tu cuenta. El celular no firma nada.
+- Tarda unos 3 minutos. Un `nonce contention (attempt 1/5)` en medio es un reintento automático.
+- Tras `DEPLOYMENT COMPLETE!` puede salir `Manifest publish failed … setText`: es un problema conocido de
+  `pad` 0.16.7 con `pad login`; **la app funciona igual** (solo falta la ficha en la galería).
+- La primera vez no hace falta nada más; para una versión nueva repite `npm run deploy` (pedirá una firma en
+  el celular porque el nombre ya es tuyo).
 
-## Después de publicar
+## Comprobar
 
-1. Escribe el nombre en `src/config.js` (`dotName`, p. ej. `loteriamexicana.dot`) y vuelve a publicar: la
-   pantalla del cantor lo muestra para que la gente sepa dónde entrar. `npm run check` valida el formato.
-2. Abre la app **desde un teléfono que no sea el tuyo** y repite el piloto de [evento.md](evento.md).
-3. Comprueba el chip de conexión del cantor: debe decir *Statement Store* en verde, no *Modo demostración*.
+```bash
+dotns content view loteria-on-chain --env devnet     # debe mostrar el CID nuevo
+```
+
+1. Abre `https://loteria-on-chain.dev-dot.li` (tarda ~10 s: busca el nombre y abre la app en un iframe).
+2. En la pantalla del cantor, el chip de conexión debe decir **Statement Store** en verde, no *Modo
+   demostración*, y bajo el código debe leerse `loteria-on-chain.dot`.
+3. Repite el piloto de [evento.md](evento.md) con teléfonos de otras personas.
 
 ## Caducidad
 
-Las publicaciones en devnet/Bulletin caducan a los pocos días (en otros proyectos ha sido ~14). Vuelve a
-publicar la semana del evento y anota la fecha en el issue del evento.
+Bulletin borra el contenido a los ~14 días (201 600 bloques). **Vuelve a publicar la semana del evento** y
+verifica la URL en un teléfono que no sea el tuyo; una publicación de hoy sirve para el piloto, no para el día.

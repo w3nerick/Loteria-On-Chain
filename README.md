@@ -170,16 +170,16 @@ red del evento:** lee [`docs/evento.md`](docs/evento.md).
 
 ## Publicar
 
-Resumen (detalle y advertencias en [`docs/deploy.md`](docs/deploy.md)):
+Destino: Products Devnet con `pad` → `loteria-on-chain.dot` (detalle, requisitos y advertencias en
+[`docs/deploy.md`](docs/deploy.md)):
 
 ```bash
-npm ci && npm run check && npm test
-pg login                       # interactivo: escanea el QR con tu Polkadot App
-pg deploy --domain loteriamexicana --playground --tag gaming
+pad login                      # interactivo: escanea el QR con tu Polkadot App
+npm run deploy                 # build + PAD_ENV=devnet pad dist loteria-on-chain.dot (en Terminal.app)
 ```
 
-Después de publicar, pon el nombre en `src/config.js` (`dotName`) y vuelve a publicar: la pantalla del cantor lo
-mostrará para que la gente sepa dónde entrar.
+La pantalla del cantor muestra `dotName` (`src/config.js`) para que la gente sepa dónde entrar. El contenido
+en Bulletin caduca a los ~14 días: republica la semana del evento.
 
 ## Documentación
 
@@ -193,7 +193,7 @@ mostrará para que la gente sepa dónde entrar.
 ## Pendientes
 
 - [ ] Piloto con teléfonos reales (5 → 15–20 → 30) en el Wi-Fi del recinto; es lo único que valida el Statement Store real.
-- [ ] Publicar y fijar `dotName` en `src/config.js`.
+- [ ] Republicar la semana del evento (Bulletin caduca a los ~14 días).
 - [ ] Confirmar que el Host concede `StatementStoreAllowance` a ~100 cuentas a la vez.
 - [ ] Idea: QR con la dirección `.dot` en la pantalla del cantor para entrar más rápido.
 
