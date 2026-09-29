@@ -12,6 +12,10 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 
 globalThis.__PREVIEW__ = true;
 
+// Códec del protocolo Host↔app que hablan hoy la Polkadot App (iOS) y Polkadot Desktop 0.1.3.
+// Súbelo solo después de medirlo en un teléfono real (docs/deploy.md).
+const HOST_CODEC = 1;
+
 const ROOT = path.resolve(process.argv[2] || process.env.ROOT || path.join(path.dirname(fileURLToPath(import.meta.url)), '..'));
 const rel = (f) => path.relative(ROOT, f).split(path.sep).join('/');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -179,6 +183,16 @@ await check('package.json y CI', ({ fail }) => {
   if (!pkg.repository) fail('falta repository');
   for (const s of ['dev', 'build', 'test', 'check']) if (!pkg.scripts?.[s]) fail(`falta el script «${s}»`);
   if (exists('LICENSE') && !/^MIT License/.test(read('LICENSE'))) fail('LICENSE no es MIT');
+  // El SDK del Host debe hablar el mismo códec que la Polkadot App: con otro, el Host «conecta» pero
+  // no contesta y la app se queda cargando. Por eso se fija exacto (sin ^) y se comprueba el códec instalado.
+  for (const name of ['@parity/product-sdk-host', '@parity/product-sdk-statement-store']) {
+    const v = pkg.dependencies?.[name];
+    if (!v || !/^\d+\.\d+\.\d+$/.test(v)) fail(`${name} debe fijarse en una versión exacta (sin ^ ni ~); ver docs/deploy.md#compatibilidad-con-el-host`);
+  }
+  if (exists('node_modules/@parity/truapi/dist/generated/client.js')) {
+    const m = read('node_modules/@parity/truapi/dist/generated/client.js').match(/TRUAPI_CODEC_VERSION\s*=\s*(\d+)/);
+    if (m && Number(m[1]) !== HOST_CODEC) fail(`el SDK instalado habla el códec ${m[1]} y la Polkadot App el ${HOST_CODEC}; ver docs/deploy.md#compatibilidad-con-el-host`);
+  }
   if (exists('.github/workflows/ci.yml')) {
     for (const m of read('.github/workflows/ci.yml').matchAll(/npm (?:run )?([\w:-]+)/g)) {
       const s = m[1];

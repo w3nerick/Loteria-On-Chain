@@ -4,11 +4,14 @@
 import { StatementStoreClient } from '@parity/product-sdk-statement-store';
 import { requestResourceAllocation } from '@parity/product-sdk-host';
 import { APP_NAME } from './protocol.js';
+import { step } from './diag.js';
+import { withTimeout } from './timeout.js';
 
 export class HostTransport {
   // `sdkTransport` solo se usa en pruebas (transporte en memoria del SDK)
-  constructor({ sdkTransport = null } = {}) {
+  constructor({ sdkTransport = null, publishTimeoutMs = 15000 } = {}) {
     this.kind = 'host';
+    this.publishTimeoutMs = publishTimeoutMs;
     this.subs = new Set();
     this.client = null;
     this.lastError = null;
@@ -17,15 +20,21 @@ export class HostTransport {
 
   async connect() {
     if (!this.sdkTransport) {
-      try {
-        // Pre-asignación oportunista; el Host también puede hacerlo al primer envío
-        await requestResourceAllocation([{ tag: 'StatementStoreAllowance' }]);
-      } catch {}
+      // Pre-asignación oportunista: si el Host no contesta o la rechaza, seguimos igual
+      // (el Host también puede asignar al primer envío).
+      await step('Pedir permiso de publicación (allowance)', () => requestResourceAllocation([{ tag: 'StatementStoreAllowance' }]), 5000);
     }
     this.client = new StatementStoreClient(
       this.sdkTransport ? { appName: APP_NAME, transport: this.sdkTransport } : { appName: APP_NAME },
     );
-    await this.client.connect({ mode: 'host' });
+    const conn = await step('Conectar el cliente del Statement Store', () => this.client.connect({ mode: 'host' }), 8000);
+    if (!conn.ok) {
+      try {
+        this.client.destroy();
+      } catch {}
+      this.client = null;
+      throw new Error(conn.error);
+    }
     this.client.subscribe((st) => {
       const meta = { signer: st.signerHex, topics: st.topics };
       for (const cb of this.subs) {
@@ -45,7 +54,8 @@ export class HostTransport {
       if (topic2) opts.topic2 = topic2;
       if (channel) opts.channel = channel;
       if (ttlSeconds) opts.ttlSeconds = ttlSeconds;
-      const r = await this.client.publish(data, opts);
+      // Sin límite, un Host que no contesta dejaría colgado el reintento de registro
+      const r = await withTimeout(this.client.publish(data, opts), this.publishTimeoutMs, 'publicar en el Statement Store');
       if (r.ok) {
         this.lastError = null;
         return { ok: true };

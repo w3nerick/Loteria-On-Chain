@@ -8,6 +8,7 @@ import { normalizeCode, isValidCode, commitOf } from '../game/crypto.js';
 import { spawnBots } from '../game/bots.js';
 import { CONFIG } from '../config.js';
 import { reducedMotion } from './app.js';
+import { whyLocal } from './diagnostico.js';
 
 const ORDER = ['c', 'e', 'm', 'f'];
 const BEAN_COLORS = ['#e4007c', '#10b5ae', '#ffb000', '#7b3fe4', '#2fbf5b', '#2d7ff9', '#ff4d5e'];
@@ -221,7 +222,7 @@ export class CantorView {
     if (this.app.mode === 'host') {
       this.el.net.replaceChildren(h('span', { class: `chip${ok ? '' : ' bad'}` }, h('span', { class: 'dot' }), ok ? 'Statement Store' : `Sin conexión: ${n?.error || 'reintentando'}`));
     } else {
-      this.el.net.replaceChildren(h('span', { class: 'chip warn' }, h('span', { class: 'dot' }), 'Modo demostración'));
+      this.el.net.replaceChildren(h('span', { class: 'chip warn', title: whyLocal(this.app.t) }, h('span', { class: 'dot' }), 'Modo demostración'));
     }
   }
 

@@ -1,5 +1,23 @@
 import { defineConfig } from 'vite';
+import fs from 'node:fs';
 import { viteSingleFile } from 'vite-plugin-singlefile';
+
+// Versiones que se muestran en la pantalla #diagnostico (y el códec del protocolo con el Host)
+const pkg = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+function hostCodec() {
+  try {
+    const src = fs.readFileSync(new URL('./node_modules/@parity/truapi/dist/generated/client.js', import.meta.url), 'utf8');
+    return Number(src.match(/TRUAPI_CODEC_VERSION\s*=\s*(\d+)/)[1]);
+  } catch {
+    return null;
+  }
+}
+const BUILD = {
+  app: pkg.version,
+  host: pkg.dependencies['@parity/product-sdk-host'],
+  statementStore: pkg.dependencies['@parity/product-sdk-statement-store'],
+  codec: hostCodec(),
+};
 
 // `npm run build`         → dist/ para `pg deploy` (incluye el SDK de Polkadot)
 // `npm run build:preview` → dist-preview/ sin SDK, solo modo demostración
@@ -21,6 +39,7 @@ export default defineConfig(({ mode }) => {
     ],
     define: {
       __PREVIEW__: JSON.stringify(preview),
+      __BUILD__: JSON.stringify(BUILD),
     },
     build: {
       outDir: preview ? 'dist-preview' : 'dist',

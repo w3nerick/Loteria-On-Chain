@@ -323,6 +323,7 @@ button { font: inherit; color: inherit; }
 .pattern-opt[aria-pressed='true'] { border-color: var(--rosa); box-shadow: inset 0 0 0 2px var(--rosa); background: #fff0f7; }
 .pattern-opt b { display: block; font-size: 1rem; }
 .pattern-opt span { font-size: 0.78rem; opacity: 0.75; }
+.diag-out { margin: 0.6rem 0 0; padding: 0.8rem 0.9rem; max-height: 46vh; overflow: auto; border-radius: 12px; background: rgba(42, 26, 18, 0.08); border: 1px solid rgba(42, 26, 18, 0.2); font: 0.78rem/1.5 var(--mono); white-space: pre-wrap; word-break: break-word; }
 .howto { list-style: none; padding: 0; margin: 0.5rem 0 0.9rem; display: grid; gap: 0.7rem; }
 .howto li { display: flex; gap: 0.8rem; align-items: flex-start; margin: 0; line-height: 1.4; }
 .howto .n { flex: none; display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; background: var(--rosa); color: var(--papel); font-family: var(--display); font-weight: 400; box-shadow: 0 2px 0 var(--rosa-osc); }

@@ -1,11 +1,13 @@
 // Almacenamiento local por dispositivo: el del Host dentro de la Polkadot App,
 // localStorage en el navegador y, si nada funciona, memoria.
+import { step } from './diag.js';
 
 export async function createStorage(kind) {
   if (kind === 'host' && !__PREVIEW__) {
     try {
       const host = await import('@parity/product-sdk-host');
-      const ls = await host.getHostLocalStorage();
+      const got = await step('Abrir el almacenamiento del Host', () => host.getHostLocalStorage(), 5000);
+      const ls = got.ok ? got.value : null;
       if (ls) {
         return {
           kind: 'host',

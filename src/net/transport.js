@@ -3,6 +3,7 @@
 // canales último-escribe-gana, caducidad, repetición del estado vivo al
 // suscribirse y el límite de 512 bytes.
 import { APP_NAME } from './protocol.js';
+import { diag, resetDiag, step } from './diag.js';
 
 const MAX_WIRE = 512;
 const enc = new TextEncoder();
@@ -146,53 +147,73 @@ export class LocalTransport {
 // ---------------------------------------------------------------------------
 // Detección del Host y creación del transporte
 
-export async function detectHost(timeoutMs = 10000) {
+// Espera a que el Host diga «connected». Devuelve true/false y deja el motivo en `diag`.
+export async function detectHost(timeoutMs = 6000) {
   if (__PREVIEW__) return false;
-  try {
-    const host = await import('@parity/product-sdk-host');
-    // El Host puede inyectar su puerto un instante después de cargar
-    let inside = host.isInsideContainerSync();
-    for (let i = 0; !inside && i < 10; i++) {
-      await new Promise((r) => setTimeout(r, 150));
-      inside = host.isInsideContainerSync();
-    }
-    if (!inside) return false;
-    return await new Promise((resolve) => {
-      let settled = false;
-      let unsub = null;
-      const done = (v) => {
-        if (settled) return;
-        settled = true;
-        resolve(v);
-        setTimeout(() => {
-          try {
-            unsub && unsub();
-          } catch {}
-        }, 0);
-      };
-      unsub = host.subscribeConnectionStatus((s) => {
-        if (s === 'connected') done(true);
-      });
-      setTimeout(() => done(false), timeoutMs);
-    });
-  } catch {
-    return false;
+  const loaded = await step('Cargar el SDK del Host', () => import('@parity/product-sdk-host'), 6000);
+  if (!loaded.ok) return false;
+  const host = loaded.value;
+  // El Host puede inyectar su puerto un instante después de cargar
+  let inside = host.isInsideContainerSync();
+  for (let i = 0; !inside && i < 10; i++) {
+    await new Promise((r) => setTimeout(r, 150));
+    inside = host.isInsideContainerSync();
   }
+  diag.steps.push({ name: '¿Estás dentro de Polkadot App?', ok: inside, ms: 0, detail: inside ? '' : 'no se detectó un contenedor (¿abriste el enlace de dev-dot.li en el navegador?)' });
+  if (!inside) return false;
+  const conn = await step(
+    'Canal con el Host',
+    () =>
+      new Promise((resolve) => {
+        let unsub = null;
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          setTimeout(() => {
+            try {
+              unsub && unsub();
+            } catch {}
+          }, 0);
+          resolve(true);
+        };
+        unsub = host.subscribeConnectionStatus((st) => {
+          if (st === 'connected') finish();
+        });
+        if (done) unsub?.();
+      }),
+    timeoutMs,
+  );
+  return conn.ok;
 }
 
 export async function createTransport({ forceLocal = false } = {}) {
-  if (!forceLocal && !__PREVIEW__ && (await detectHost())) {
-    try {
-      const { HostTransport } = await import('./hostTransport.js');
-      const t = new HostTransport();
-      await t.connect();
-      return t;
-    } catch (e) {
-      console.warn('No se pudo abrir el Statement Store, uso modo local', e);
+  resetDiag();
+  if (!forceLocal && !__PREVIEW__) {
+    if (await detectHost()) {
+      const made = await step(
+        'Abrir el Statement Store',
+        async () => {
+          const { HostTransport } = await import('./hostTransport.js');
+          const t = new HostTransport();
+          await t.connect();
+          return t;
+        },
+        15000,
+      );
+      if (made.ok) {
+        diag.mode = 'host';
+        return made.value;
+      }
     }
+    const failed = [...diag.steps].reverse().find((x) => !x.ok);
+    diag.reason = failed ? `${failed.name}: ${failed.detail || 'falló'}` : 'sin Host';
+  } else {
+    diag.reason = __PREVIEW__ ? 'compilación de demostración' : null;
   }
   const t = new LocalTransport();
   await t.connect();
+  t.fallbackReason = diag.reason;
   return t;
 }
 

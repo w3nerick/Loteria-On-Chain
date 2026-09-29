@@ -11,6 +11,7 @@ import { LocalTransport } from '../net/transport.js';
 import { PATTERNS } from '../game/rules.js';
 import { isValidRoom } from '../game/crypto.js';
 import { CONFIG } from '../config.js';
+import { showDiagnostics, whyLocal } from './diagnostico.js';
 
 export const reducedMotion = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -31,6 +32,7 @@ export class App {
     const hash = location.hash.replace('#', '');
     if (hash === 'cantor') this.showCantorSetup();
     else if (hash === 'jugar') this.showPlayerSetup();
+    else if (hash === 'diagnostico') this.showDiagnostics();
     else this.showHome();
   }
 
@@ -44,6 +46,10 @@ export class App {
     this.ui.replaceChildren();
   }
 
+  showDiagnostics() {
+    showDiagnostics(this);
+  }
+
   useHomeScene() {
     if (!this.stage) return;
     if (!this.homeScene) this.homeScene = new HomeScene();
@@ -52,7 +58,7 @@ export class App {
 
   netChip() {
     if (this.mode === 'host') return h('span', { class: 'chip' }, h('span', { class: 'dot' }), 'Conectado al Statement Store de Polkadot');
-    return h('span', { class: 'chip warn' }, h('span', { class: 'dot' }), 'Modo demostración · fuera de la Polkadot App');
+    return h('span', { class: 'chip warn' }, h('span', { class: 'dot' }), `Modo demostración · ${whyLocal(this.t)}`);
   }
 
   // --- portada ----------------------------------------------------------------
@@ -72,6 +78,7 @@ export class App {
         h('button', { class: 'btn btn-ghost', onclick: () => { sound.unlock(); this.showCantorSetup(); } }, icon('expand', 20), 'Ser el cantor', h('small', {}, '· pantalla grande')),
         h('div', { class: 'home-foot' },
           h('button', { class: 'link', onclick: () => this.showHelp() }, '¿Cómo se juega?'),
+          h('button', { class: 'link', onclick: () => this.showDiagnostics() }, 'Diagnóstico'),
         ),
         h('div', { class: 'home-foot' }, this.netChip()),
       ),

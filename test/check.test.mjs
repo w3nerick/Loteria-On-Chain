@@ -62,6 +62,7 @@ const BAD = [
   ['imagen con mayúsculas', (d) => add(d, 'docs/img/Captura.png', 'x'), /minúsculas/],
   ['package.json sin licencia', (d) => edit(d, 'package.json', (s) => s.replace('"license": "MIT"', '"license": "ISC"')), /license debe ser MIT/],
   ['el CI llama a un script inexistente', (d) => edit(d, '.github/workflows/ci.yml', (s) => `${s}      - run: npm run inexistente\n`), /npm run inexistente/],
+  ['SDK del Host sin fijar', (d) => edit(d, 'package.json', (s) => s.replace('"@parity/product-sdk-host": "0.19.1"', '"@parity/product-sdk-host": "^0.19.1"')), /debe fijarse en una versión exacta/],
   ['dotName con formato inválido', (d) => edit(d, 'src/config.js', (s) => s.replace(/dotName: '[^']*'/, "dotName: 'corto.dot'")), /dotName inválido/],
 ];
 

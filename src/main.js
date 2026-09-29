@@ -9,8 +9,10 @@ async function boot() {
   const splash = document.getElementById('splash');
   const msg = document.getElementById('splash-msg');
   const slow = setTimeout(() => msg && (msg.textContent = 'Conectando con tu Polkadot App…'), 1200);
+  const slower = setTimeout(() => msg && (msg.textContent = 'La Polkadot App tarda en contestar… si no responde entras en modo demostración'), 9000);
   const [, transport] = await Promise.all([loadFonts(), createTransport()]);
   clearTimeout(slow);
+  clearTimeout(slower);
   const storage = await createStorage(transport.kind);
   let stage = null;
   if (webglAvailable()) {

@@ -53,6 +53,24 @@ dotns content view loteria-on-chain --env devnet     # debe mostrar el CID nuevo
    demostración*, y bajo el código debe leerse `loteria-on-chain.dot`.
 3. Repite el piloto de [evento.md](evento.md) con teléfonos de otras personas.
 
+## Compatibilidad con el Host
+
+El SDK que lleva la app y la Polkadot App tienen que hablar el mismo **códec** del protocolo. Si no, el SDK
+dice «connected» pero el Host no contesta nada y la app se queda en *«Conectando con tu Polkadot App»*.
+Medido en un iPhone (Polkadot App iOS) y en Polkadot Desktop 0.1.3: hablan el **códec 1**.
+
+| Paquete | Versión | Nota |
+|---|---|---|
+| `@parity/product-sdk-host` | `0.19.1` | fija el `truapi` 0.13.1 (códec 1) |
+| `@parity/product-sdk-statement-store` | `0.6.9` | la que depende justo de host 0.19.1 |
+
+- Se fijan **exactas** (sin `^`) y `npm run check` falla si no lo están o si el códec instalado no es el 1.
+- La versión 0.23 del host (códec 3) **no** funciona con la Polkadot App actual.
+- Subir de versión solo después de medir el códec del Host en un teléfono real. La pantalla
+  `#diagnostico` de la app muestra la versión del SDK, el códec y qué paso del arranque falló.
+- Si el Host no contesta, la app ya no se queda cargando: a los pocos segundos entra en modo demostración
+  y dice por qué.
+
 ## Caducidad
 
 Bulletin borra el contenido a los ~14 días (201 600 bloques). **Vuelve a publicar la semana del evento** y
