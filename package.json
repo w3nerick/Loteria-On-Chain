@@ -1,0 +1,30 @@
+{
+  "name": "loteria-en-cadena",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Lotería mexicana multijugador en 3D para la Polkadot App, Polkadot Desktop y Polkadot Web",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --mode preview",
+    "dev:host": "vite",
+    "build": "vite build",
+    "build:preview": "vite build --mode preview",
+    "test": "node --test --test-force-exit test/*.test.mjs",
+    "test:scale": "node --test --test-force-exit test/scale.test.mjs",
+    "carga": "node scripts/carga.mjs"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@fontsource/alegreya": "^5.3.0",
+    "@fontsource/oswald": "^5.3.0",
+    "@fontsource/rye": "^5.3.0",
+    "@noble/hashes": "^1.8.0",
+    "@parity/product-sdk-host": "^0.23.0",
+    "@parity/product-sdk-statement-store": "^0.6.13",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "vite": "^6.4.3",
+    "vite-plugin-singlefile": "^2.3.3"
+  }
+}

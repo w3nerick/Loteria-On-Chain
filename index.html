@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Lotería en Cadena</title>
+    <meta name="description" content="Lotería mexicana multijugador en 3D para la Polkadot App, Polkadot Desktop y Polkadot Web." />
+    <meta name="theme-color" content="#140b2e" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='2' width='20' height='28' rx='3' fill='%23e4007c' stroke='%232a1a12' stroke-width='2'/%3E%3Ccircle cx='16' cy='15' r='6' fill='%23ffc72c' stroke='%232a1a12' stroke-width='2'/%3E%3C/svg%3E" />
+    <!--HOST_MARK-->
+  </head>
+  <body>
+    <canvas id="gl" aria-hidden="true"></canvas>
+    <div id="ui"></div>
+    <div id="splash" class="splash">
+      <div style="display: grid; gap: 14px; justify-items: center; text-align: center; padding: 16px">
+        <div class="logo">¡Lotería!</div>
+        <div id="splash-msg" style="font-family: var(--ui); letter-spacing: 0.1em; text-transform: uppercase; font-size: 0.85rem; opacity: 0.8">Barajeando…</div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
