@@ -9,6 +9,8 @@ import { spawnBots } from '../game/bots.js';
 import { CONFIG } from '../config.js';
 import { reducedMotion } from './app.js';
 import { whyLocal } from './diagnostico.js';
+import { sealRound, pendingPlayers } from '../chain/seal.js';
+import { registryDeployed } from '../chain/registry.js';
 
 const ORDER = ['c', 'e', 'm', 'f'];
 const BEAN_COLORS = ['#e4007c', '#10b5ae', '#ffb000', '#7b3fe4', '#2fbf5b', '#2d7ff9', '#ff4d5e'];
@@ -58,6 +60,8 @@ export class CantorView {
     const offStatus = this.e.t.onStatus?.(() => this.renderNet({ ok: this.e.netOk }));
     if (offStatus) this.offs.push(offStatus);
     on('deckEmpty', () => toast('Ya salieron las 54 cartas. Empieza una ronda nueva.', 'warn', 5000));
+    on('result', () => this.renderChainPanel());
+    on('sealed', () => this.renderChainPanel());
     this._key = (ev) => this.onKey(ev);
     window.addEventListener('keydown', this._key);
     this._move = () => this.wake();
@@ -66,6 +70,7 @@ export class CantorView {
     keepAwake.wanted = true;
     keepAwake();
     this.renderAll();
+    this.renderChainPanel();
   }
 
   unmount() {
@@ -401,7 +406,9 @@ export class CantorView {
       seedOk ? h('span', { class: 'ok' }, `✓ Semilla revelada: coincide con el compromiso ${s.commit.slice(0, 8)}…`) : null,
       h('span', { class: 'meta' }, `Tabla ${first.k} · ${s.called.length} cartas cantadas`),
     );
-    E.side.append(E.proof);
+    if (E.chain) E.side.insertBefore(E.proof, E.chain);
+    else E.side.append(E.proof);
+    this.renderChainPanel();
     E.call.classList.remove('pop');
     E.num.textContent = '';
     E.callName.textContent = '';
@@ -413,6 +420,71 @@ export class CantorView {
     this.el.banner.hidden = true;
     this.el.proof?.remove();
     this.el.proof = null;
+    this.el.chain?.remove();
+    this.el.chain = null;
+  }
+
+  // --- historial en la cadena -------------------------------------------------------
+  // Cuántos resultados llegaron y cuántos vienen firmados; el botón guarda la ronda
+  // en LoteriaRegistry (o agrega lo que llegó después de guardarla).
+  pendingToSeal() {
+    const s = this.e.s;
+    const rec = this.e.roundRecord();
+    if (!rec) return { rec: null, pending: 0, sealed: false };
+    const sealed = s.sealed?.id === rec.id;
+    return { rec, pending: pendingPlayers(rec, sealed ? s.sealed.keys : []).length, sealed };
+  }
+
+  renderChainPanel() {
+    const s = this.e.s;
+    const E = this.el;
+    if (s.phase !== 'W') {
+      E.chain?.remove();
+      E.chain = null;
+      return;
+    }
+    if (!E.chain) {
+      E.chain = h('section', { class: 'c-chain glass' });
+      E.side.append(E.chain);
+    }
+    const c = this.e.resultCounts();
+    const { pending, sealed } = this.pendingToSeal();
+    const parts = [
+      h('h3', {}, icon('chain', 18), 'Historial en la cadena'),
+      h('span', {}, 'Resultados: ', h('b', { class: 'num' }, String(c.results)), ` de ${c.players} · firmados: `, h('b', { class: 'num' }, String(c.signed))),
+    ];
+    if (this._sealing) parts.push(h('span', { class: 'meta' }, h('span', { class: 'spin' }), this._sealStep || 'Guardando…'));
+    else if (this.demo) parts.push(h('span', { class: 'meta' }, 'Para guardarla, abre la sala desde Polkadot Desktop.'));
+    else if (!registryDeployed()) parts.push(h('span', { class: 'meta' }, 'El contrato del historial todavía no está desplegado.'));
+    else if (sealed && !pending) parts.push(h('span', { class: 'ok' }, `✓ Guardada en el bloque #${s.sealed.block.toLocaleString('es-MX')}`));
+    else {
+      if (!sealed) parts.push(h('span', { class: 'meta' }, 'Espera unos segundos a que firmen; lo que llegue después se puede agregar.'));
+      parts.push(this.btn([icon('chain', 18), sealed ? `Agregar ${pending} más` : 'Guardar en la cadena'], () => this.seal(), 'gold'));
+    }
+    if (this._sealError && !this._sealing) parts.push(h('span', { class: 'warn' }, this._sealError));
+    E.chain.replaceChildren(...parts);
+  }
+
+  async seal() {
+    if (this._sealing) return;
+    this._sealing = true;
+    this._sealError = null;
+    this._sealStep = 'Preparando…';
+    this.renderChainPanel();
+    try {
+      const r = await sealRound(this.e, (text) => {
+        this._sealStep = text;
+        this.renderChainPanel();
+      });
+      sound.ding();
+      toast(r.already ? 'Esta ronda ya estaba guardada en la cadena' : `Ronda guardada en el bloque #${r.block.toLocaleString('es-MX')}`, 'good', 5000);
+    } catch (e) {
+      this._sealError = String(e?.message || e);
+      toast('No se pudo guardar en la cadena', 'bad', 4000);
+    } finally {
+      this._sealing = false;
+      this.renderChainPanel();
+    }
   }
 
   onPending(p) {
@@ -481,6 +553,26 @@ export class CantorView {
   }
 
   newRound() {
+    if (this._sealing) {
+      toast('Espera a que termine de guardarse en la cadena', 'warn', 3000);
+      return;
+    }
+    const { pending } = this.pendingToSeal();
+    if (pending && !this.demo && registryDeployed()) {
+      modal({
+        title: '¿Nueva ronda sin guardar?',
+        body: h('p', {}, `Hay ${pending} ${pending === 1 ? 'jugador' : 'jugadores'} de esta ronda que todavía no se ${pending === 1 ? 'guarda' : 'guardan'} en la cadena. Si empiezas otra ronda, sus resultados se pierden.`),
+        actions: [
+          { label: 'Nueva ronda', onClick: () => this.startNewRound() },
+          { label: 'Guardar primero', kind: 'primary', onClick: () => this.seal() },
+        ],
+      });
+      return;
+    }
+    this.startNewRound();
+  }
+
+  startNewRound() {
     this.hideBanner();
     this.e.newRound();
   }

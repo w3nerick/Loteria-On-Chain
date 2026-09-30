@@ -39,3 +39,36 @@ jobs:
           name: loteria-en-cadena-dist
           path: dist/index.html
           retention-days: 14
+
+  contrato:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: contract
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: contract/package-lock.json
+
+      - name: solc 0.8.36
+        run: |
+          sudo curl -sSfL -o /usr/local/bin/solc https://github.com/ethereum/solidity/releases/download/v0.8.36/solc-static-linux
+          sudo chmod +x /usr/local/bin/solc
+          solc --version
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Compilar para la EVM (ABI y pruebas)
+        run: npm run build:evm
+
+      - name: Pruebas de LoteriaRegistry en EVM local
+        run: npm test
+
+      - name: El ABI de la app es el del contrato
+        run: diff <(jq -S . out-evm/LoteriaRegistry.abi) <(jq -S . ../src/chain/LoteriaRegistry.abi.json)

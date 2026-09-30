@@ -1,8 +1,11 @@
 // Jugadores simulados para la vista previa y el modo práctica.
 // Hablan por el mismo bus local que el resto: se registran, siguen las
 // cartas y cantan ¡Lotería! con cierto tiempo de reacción.
-import { parseState, buildJoin, buildClaim, topicFor, joinChannel, claimChannel } from '../net/protocol.js';
+import { secretFromSeed, getPublicKey, sign } from '@scure/sr25519';
+import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils';
+import { parseState, buildJoin, buildClaim, buildResult, topicFor, joinChannel, claimChannel, resultChannel, clip } from '../net/protocol.js';
 import { AckWatcher } from '../net/bloom.js';
+import { maskOf, resultMessage } from '../chain/record.js';
 import { randomCode, tablaFromCode, tablaHash } from './crypto.js';
 import { checkWin } from './rules.js';
 import { CantorEngine } from './cantor.js';
@@ -64,7 +67,13 @@ export class Bot {
       const delay = late ? 20000 + Math.random() * 15000 : 400 + Math.random() * 7000;
       this._later(() => this._join(), delay);
     }
-    if (!this.acked && this.sent && this._ack.feed(st.bloom)) this.acked = true;
+    if (!this.acked && this.sent && st.phase !== 'W' && this._ack.feed(st.bloom)) this.acked = true;
+    // Al terminar la ronda manda su resultado y, casi siempre, lo firma (como un teléfono de verdad)
+    if (st.phase === 'W' && this.acked && this.resultG !== st.g) {
+      this.resultG = st.g;
+      this._later(() => this._result(false), 500 + Math.random() * 5000);
+      if (Math.random() < 0.7) this._later(() => this._result(true), 6000 + Math.random() * 9000);
+    }
     if (st.phase === 'P' && !this.claimed && checkWin(this.tabla, new Set(st.called), st.pattern)) {
       this.claimed = true;
       const [a, b] = this.reaction;
@@ -87,6 +96,26 @@ export class Bot {
     this.t.publish(buildClaim(this.room, this.state.g, this.code, this.name), {
       topic2: topicFor(this.room),
       channel: claimChannel(this.room, this.h),
+    });
+  }
+
+  _result(signed) {
+    const st = this.state;
+    if (!st || st.phase !== 'W' || st.g !== this.resultG) return;
+    const called = new Set(st.called);
+    // Marcó lo que le salió, salvo algún descuido
+    const mask = maskOf([...Array(16).keys()].filter((c) => called.has(this.tabla[c]) && Math.random() > 0.08));
+    let pub = null;
+    let sig = null;
+    if (signed && st.commit) {
+      this.secret ??= secretFromSeed(crypto.getRandomValues(new Uint8Array(32)));
+      pub = bytesToHex(getPublicKey(this.secret));
+      const msg = resultMessage({ room: this.room, g: st.g, commit: st.commit, code: this.code, mask, name: clip(this.name, 16) });
+      sig = bytesToHex(sign(this.secret, utf8ToBytes(msg)));
+    }
+    this.t.publish(buildResult(this.room, st.g, this.code, mask, clip(this.name, 16), pub, sig), {
+      topic2: topicFor(this.room),
+      channel: resultChannel(this.room, this.h),
     });
   }
 

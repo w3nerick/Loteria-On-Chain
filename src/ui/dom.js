@@ -22,6 +22,8 @@ const ICONS = {
   check: '<path d="M4.5 12.5l5 5 10-11"/>',
   cards: '<rect x="3.5" y="6" width="10" height="14" rx="2" transform="rotate(-8 8.5 13)"/><rect x="10.5" y="4" width="10" height="14" rx="2" transform="rotate(8 15.5 11)"/>',
   bolt: '<path d="M13 3L5 13.5h6L10 21l8-10.5h-6z" fill="currentColor" stroke="none"/>',
+  chain: '<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>',
+  history: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
 };
 
 export function icon(name, size = 20) {

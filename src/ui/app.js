@@ -12,6 +12,7 @@ import { PATTERNS } from '../game/rules.js';
 import { isValidRoom } from '../game/crypto.js';
 import { CONFIG } from '../config.js';
 import { showDiagnostics, whyLocal } from './diagnostico.js';
+import { showHistory } from './historyView.js';
 
 export const reducedMotion = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -33,6 +34,7 @@ export class App {
     if (hash === 'cantor') this.showCantorSetup();
     else if (hash === 'jugar') this.showPlayerSetup();
     else if (hash === 'diagnostico') this.showDiagnostics();
+    else if (hash === 'historial') showHistory(this);
     else this.showHome();
   }
 
@@ -97,6 +99,7 @@ export class App {
         h('button', { class: 'btn btn-ghost', onclick: () => { sound.unlock(); this.showCantorSetup(); } }, icon('expand', 20), 'Ser el cantor', h('small', {}, '· pantalla grande')),
         h('div', { class: 'home-foot' },
           h('button', { class: 'link', onclick: () => this.showHelp() }, '¿Cómo se juega?'),
+          h('button', { class: 'link', onclick: () => showHistory(this) }, 'Historial'),
           h('button', { class: 'link', onclick: () => this.showDiagnostics() }, 'Diagnóstico'),
         ),
         h('div', { class: 'home-foot' }, this.netChip()),
@@ -297,7 +300,8 @@ export class App {
       h('div', { class: 'eyebrow', style: { color: 'var(--rosa)' } }, 'Cantor'),
       h('h2', {}, 'Abre la sala'),
       h('p', {}, 'Pon esta pantalla en el proyector. Los jugadores entran desde su Polkadot App con el código que aparecerá aquí.'),
-      saved && saved.phase !== 'W'
+      // Una ronda terminada también se retoma si falta guardarla en la cadena
+      saved && (saved.phase !== 'W' || (saved.results?.length && !saved.sealed))
         ? h('div', { class: 'field' },
             h('button', { class: 'btn btn-gold', onclick: resume }, `Retomar sala ${saved.room}`, h('small', {}, `· ronda ${saved.g}, ${saved.called?.length || 0} cartas, ${saved.registered?.length || 0} tablas`)),
           )

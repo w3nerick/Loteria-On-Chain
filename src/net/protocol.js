@@ -18,6 +18,7 @@ export const stateChannel = (room) => `st/${room}`;
 // el mensaje nuevo reemplaza al anterior en vez de sumar otro.
 export const joinChannel = (room, id) => `j/${room}/${id}`;
 export const claimChannel = (room, h) => `c/${room}/${h}`;
+export const resultChannel = (room, id) => `f/${room}/${id}`;
 
 export function encodeCalled(ids) {
   return ids.map((i) => CARD_ALPHA[i]).join('');
@@ -69,10 +70,10 @@ export function buildState(s) {
   // Lo prescindible se recorta primero…
   if (byteSize(m) > MAX_BYTES) delete m.rj;
   if (byteSize(m) > MAX_BYTES) m.nm = clip(m.nm, 10);
-  // …y con lo que sobra se arma el filtro de confirmaciones (`s.acks`: hashes de
-  // las tablas oídas hace poco, las más recientes primero). En la fase de
-  // victoria nadie se registra, así que no hace falta.
-  if (s.phase !== 'W' && s.acks?.length) {
+  // …y con lo que sobra se arma el filtro de confirmaciones (`s.acks`, los más
+  // recientes primero): antes de la victoria, las tablas registradas; en la
+  // victoria, los resultados que ya llegaron (con o sin firma).
+  if (s.acks?.length) {
     const room = MAX_BYTES - byteSize(m) - 9; // `,"k":""` + margen
     const avail = room - 2; // 1 carácter para k y 1 para la sal
     if (avail >= 4) {
@@ -142,6 +143,27 @@ export function parseJoin(m) {
     p: isHex(m.p, 8) ? m.p : null,
     v: Number.isSafeInteger(m.v) && m.v > 0 ? m.v : 0,
   };
+}
+
+// Resultado al terminar la ronda (jugador → cantor): su tabla, las casillas que
+// marcó y, si firmó, su llave pública y la firma sr25519 de `resultMessage`.
+export function buildResult(room, g, code, mask, name, pubkey = null, sig = null) {
+  const m = { t: 'f', r: room, g, k: code, m: (mask & 0xffff).toString(16).padStart(4, '0'), n: clip(name, 16) };
+  if (pubkey && sig) {
+    m.a = String(pubkey).replace(/^0x/, '');
+    m.s = String(sig).replace(/^0x/, '');
+  }
+  return m;
+}
+
+export function parseResult(m) {
+  if (!m || m.t !== 'f' || !isValidRoom(m.r) || !Number.isInteger(m.g) || !isValidCode(m.k) || !isHex(m.m, 4)) return null;
+  const out = { room: m.r, g: m.g, k: m.k, mask: parseInt(m.m, 16), n: clip(m.n, 16) || 'Jugador', pubkey: null, sig: null };
+  if (isHex(m.a, 64) && isHex(m.s, 128)) {
+    out.pubkey = `0x${m.a}`;
+    out.sig = `0x${m.s}`;
+  }
+  return out;
 }
 
 // ¡Lotería! (jugador → cantor): revela el código de su tabla

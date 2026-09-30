@@ -147,16 +147,24 @@ await check('Privacidad y secretos', ({ fail, note }) => {
     [/[A-Za-z]:\\Users\\/, 'ruta local de Windows'],
     [/\bgh[pousr]_[A-Za-z0-9]{20,}/, 'token de GitHub'],
     [/-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/, 'llave privada'],
-    [/\b0x[0-9a-fA-F]{64}\b/, 'posible llave privada (0x + 64 hex)'],
+    [/\b0x[0-9a-fA-F]{64}\b/g, 'posible llave privada (0x + 64 hex)'],
     [/\b(?:sk|pk)_(?:live|test)_[A-Za-z0-9]{16,}/, 'llave de API'],
   ];
+  // Hashes públicos que sí deben aparecer: el genesis de Asset Hub y el de People chain del devnet
+  const PUBLIC_HEX = new Set([
+    '0xd6eec26135305a8ad257a20d003357284c8aa03d0bdb2b357ab0a22371e11ef2',
+    '0xe6c30d6e148f250b887105237bcaa5cb9f16dd203bf7b5b9d4f1da7387cb86ec',
+  ]);
   const email = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g;
   let scanned = 0;
   for (const f of FILES) {
     if (f === 'package-lock.json' || f === 'scripts/check.mjs' || f === 'test/check.test.mjs' || !isText(f)) continue;
     scanned++;
     const text = read(f);
-    for (const [re, what] of rules) if (re.test(text)) fail(`${f}: ${what}`);
+    for (const [re, what] of rules) {
+      const hits = re.global ? [...text.matchAll(re)].filter((m) => !PUBLIC_HEX.has(m[0].toLowerCase())) : re.test(text) ? [1] : [];
+      if (hits.length) fail(`${f}: ${what}`);
+    }
     for (const m of text.matchAll(email)) {
       if (/noreply|example\.(com|org)|@\d+\.\d+/.test(m[0])) continue;
       if (/^[^@]+@\d/.test(m[0])) continue; // versiones tipo paquete@1.2.3
@@ -185,7 +193,7 @@ await check('package.json y CI', ({ fail }) => {
   if (exists('LICENSE') && !/^MIT License/.test(read('LICENSE'))) fail('LICENSE no es MIT');
   // El SDK del Host debe hablar el mismo códec que la Polkadot App: con otro, el Host «conecta» pero
   // no contesta y la app se queda cargando. Por eso se fija exacto (sin ^) y se comprueba el códec instalado.
-  for (const name of ['@parity/product-sdk-host', '@parity/product-sdk-statement-store']) {
+  for (const name of ['@parity/product-sdk-host', '@parity/product-sdk-statement-store', '@parity/product-sdk-signer']) {
     const v = pkg.dependencies?.[name];
     if (!v || !/^\d+\.\d+\.\d+$/.test(v)) fail(`${name} debe fijarse en una versión exacta (sin ^ ni ~); ver docs/deploy.md#compatibilidad-con-el-host`);
   }
@@ -194,10 +202,16 @@ await check('package.json y CI', ({ fail }) => {
     if (m && Number(m[1]) !== HOST_CODEC) fail(`el SDK instalado habla el códec ${m[1]} y la Polkadot App el ${HOST_CODEC}; ver docs/deploy.md#compatibilidad-con-el-host`);
   }
   if (exists('.github/workflows/ci.yml')) {
-    for (const m of read('.github/workflows/ci.yml').matchAll(/npm (?:run )?([\w:-]+)/g)) {
-      const s = m[1];
-      if (['ci', 'install', 'i'].includes(s)) continue;
-      if (!pkg.scripts?.[s]) fail(`ci.yml llama a «npm run ${s}», que no existe en package.json`);
+    // Cada trabajo corre en la raíz o en su `working-directory` (el contrato tiene su propio package.json)
+    for (const job of read('.github/workflows/ci.yml').split(/\n(?=  [\w-]+:\n)/)) {
+      const dir = job.match(/working-directory:\s*(\S+)/)?.[1] || '.';
+      const file = dir === '.' ? 'package.json' : `${dir}/package.json`;
+      const scripts = dir === '.' ? pkg.scripts : exists(file) ? JSON.parse(read(file)).scripts : null;
+      for (const m of job.matchAll(/npm (?:run )?([\w:-]+)/g)) {
+        const s = m[1];
+        if (['ci', 'install', 'i'].includes(s)) continue;
+        if (!scripts?.[s]) fail(`ci.yml llama a «npm run ${s}», que no existe en ${file}`);
+      }
     }
   }
 });
