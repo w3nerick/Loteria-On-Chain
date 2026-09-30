@@ -189,8 +189,9 @@ export function decodePlayers(bytes) {
   return out;
 }
 
-// Reparte los registros en partes que quepan en una transacción
-export function splitPlayers(list, maxBytes = 12000) {
+// Reparte los registros en partes que quepan en una transacción. Medido en el devnet
+// (30 sep 2026): el límite es el proof_size (~3 MB), unos 50 jugadores firmados.
+export function splitPlayers(list, maxBytes = 6000) {
   const parts = [];
   let cur = [];
   let size = 0;

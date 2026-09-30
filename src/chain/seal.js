@@ -70,7 +70,7 @@ export async function sealRound(engine, onStep = () => {}) {
   }
 
   const header = encodeHeader(record.header);
-  let maxBytes = 12000;
+  let maxBytes = 6000; // ~50 jugadores firmados: 2.2 MB de proof_size (tope 3 MB)
   let lastBlock = 0;
   const keys = [...sealedKeys];
   let txs = 0;

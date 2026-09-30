@@ -24,7 +24,7 @@ verificar desde la pantalla **Historial** de la app.
    La firma reemplaza al resultado sin firma. El cantor la verifica antes de aceptarla.
 3. **El cantor guarda la ronda.** El panel **Historial en la cadena** de la pantalla grande cuenta cuántos
    resultados llegaron y cuántos vienen firmados. **Guardar en la cadena** manda una transacción (o varias,
-   con unos 90 jugadores por transacción) desde Polkadot Desktop. Lo que llegue después se agrega con
+   con unos 50 jugadores por transacción) desde Polkadot Desktop. Lo que llegue después se agrega con
    **Agregar N más**. Si el cantor empieza otra ronda sin guardar, la app le avisa.
 
 Quién paga: la cuenta de la app si tiene saldo; si no, la identidad `.dot` del cantor. Los jugadores nunca pagan.
@@ -64,7 +64,7 @@ mejor registro.
 
 `LoteriaRegistry` solo guarda bytes: no verifica firmas (eso cuesta peso y se hace mejor fuera de la cadena).
 Lo primero que se guarda gana y nada se sobrescribe; solo la cuenta que guardó una ronda puede agregarle
-jugadores. Tope: 1000 jugadores por ronda, 16 KB por transacción.
+jugadores. Tope: 1000 jugadores por ronda, 16 KB por transacción (en la práctica manda el peso, ver abajo).
 
 ```bash
 cd contract
@@ -80,12 +80,27 @@ Después de desplegar: poner la dirección de `contract/deployments.json` en `RE
 ([`src/chain/LoteriaRegistry.abi.json`](../src/chain/LoteriaRegistry.abi.json)) debe ser el del contrato: el CI
 lo compara.
 
-Depósito medido con la simulación (30 sep 2026): **1.36 PAS** por desplegar el contrato.
+**Desplegado** el 30 sep 2026 en `0x1ffee4d43c109a5c91c1c1296b93cf6da4c744ce` (bloque 13,892,444; depósito
+1.36 PAS).
+
+Costo medido con simulaciones contra el contrato desplegado (30 sep 2026):
+
+| Jugadores firmados en la transacción | Bytes | Depósito | proof_size |
+|---|---|---|---|
+| 0 (solo la cabecera) | 104 | 0.024 PAS | 0.23 MB |
+| 25 | 3,019 | 0.27 PAS | 1.26 MB |
+| 50 | 5,944 | 0.51 PAS | 2.19 MB |
+| 95 | 11,209 | 0.95 PAS | 3.89 MB ✗ pasa el tope de ~3 MB |
+
+Unos **0.01 PAS por jugador** (una ronda de 100 ≈ 1 PAS, en 2 transacciones). El límite real es el
+proof_size, no los bytes: por eso cada transacción lleva hasta ~6 KB (~50 jugadores) y, si una parte no
+cabe, la app la parte a la mitad. El comentario de `MAX_PARTE` en el contrato dice «unos 100»: se deja así
+porque el código debe coincidir con lo desplegado.
 
 ## Límites conocidos
 
-- Sin probar todavía en la cadena real: el sello desde Polkadot Desktop, el costo por ronda (depósito por
-  byte) y la firma de 100 teléfonos a la vez.
+- Sin probar todavía en la cadena real: el sello firmado desde Polkadot Desktop y la firma de 100 teléfonos
+  a la vez. La lectura y las simulaciones sí se probaron contra el contrato desplegado.
 - Un jugador que no toca **Firmar** queda «sin firma»: su resultado lo afirma el cantor, no él.
 - Si el cantor recarga la pantalla después de la victoria, la sala se retoma desde **Ser el cantor** mientras
   falte guardarla; los resultados que ya habían llegado se conservan.

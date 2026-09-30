@@ -4,7 +4,7 @@
 // el doble del peso simulado y se espera a `finalized`.
 import { Binary } from 'polkadot-api';
 import { decodeErrorResult, decodeFunctionResult, encodeFunctionData } from 'viem';
-import abi from './LoteriaRegistry.abi.json';
+import abi from './LoteriaRegistry.abi.json' with { type: 'json' };
 import { REGISTRY_ADDRESS } from './network.js';
 
 // Cualquier cuenta sirve de origen para leer; esta es la pública de desarrollo
