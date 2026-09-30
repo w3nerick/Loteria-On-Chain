@@ -8,6 +8,8 @@ import { PATTERNS } from '../game/rules.js';
 import { tablaFromCode } from '../game/crypto.js';
 import { checkWin } from '../game/rules.js';
 import { reducedMotion } from './app.js';
+import { maskOf, popcount } from '../chain/record.js';
+import { signText } from '../chain/wallet.js';
 
 export class PlayerView {
   constructor({ app, engine, practice = false, onExit }) {
@@ -53,6 +55,10 @@ export class PlayerView {
       this.renderReady();
     });
     on('net', () => this.renderStatus());
+    on('result', () => {
+      this.renderChain();
+      this.renderStatus();
+    });
     const offStatus = this.e.t.onStatus?.(() => this.renderStatus());
     if (offStatus) this.offs.push(offStatus);
     on('tabla', () => {
@@ -97,7 +103,8 @@ export class PlayerView {
     E.recent = h('div', { class: 'p-recent', 'aria-hidden': 'true' });
     E.current = h('div', { class: 'p-current glass', 'aria-live': 'polite' }, E.cardBox, h('div', {}, E.callName, E.verse, E.recent));
     E.top = h('div', { class: 'p-top' }, E.meta, E.current);
-    E.status = h('div', { class: 'p-status' });
+    // En la victoria, tocar el estado vuelve a abrir el resultado (para firmarlo)
+    E.status = h('div', { class: 'p-status', onclick: () => this.e.state?.phase === 'W' && this._lastWin && this.onWin({ ...this._lastWin, update: true }) });
     E.need = h('div', { class: 'p-need', hidden: true });
     E.info = h('div', { class: 'p-info' }, E.status, E.need);
     E.btn = h('button', { class: 'btn btn-primary btn-loteria', onclick: () => this.onLoteria() }, '¡Lotería!');
@@ -166,7 +173,14 @@ export class PlayerView {
     let msg = `Tabla ${e.code}`;
     let cls = '';
     if (!st) msg += ' · buscando la sala…';
-    else if (st.phase === 'W') msg += '';
+    else if (st.phase === 'W') {
+      const r = e.result.status;
+      if (r === 'received') msg += ' · toca aquí para firmar tu resultado';
+      else if (r === 'signedReceived') {
+        msg += ' · resultado firmado ✓';
+        cls = 'ok';
+      }
+    }
     else if (e.acked) {
       msg += ' · registrada con el cantor';
       cls = 'ok';
@@ -177,6 +191,7 @@ export class PlayerView {
     else if (st.phase === 'P' && st.called.length > 0) msg += ' · llegaste con la ronda empezada';
     else msg += ' · registrando…';
     this.el.status.className = `p-status ${cls}`;
+    this.el.status.style.cursor = st?.phase === 'W' ? 'pointer' : '';
     this.el.status.replaceChildren(h('span', { class: 'dot' }), msg);
     const lobbyStatus = this.overlayKind === 'lobby' ? this.overlay?.querySelector('.lobby-status') : null;
     if (lobbyStatus) this.fillLobbyStatus(lobbyStatus);
@@ -348,6 +363,7 @@ export class PlayerView {
 
   onWin({ winners, mine, verified, update }) {
     const st = this.e.state;
+    this._lastWin = { winners, mine, verified };
     if (mine) {
       if (!update) {
         sound.fanfare();
@@ -435,6 +451,7 @@ export class PlayerView {
         h('h2', {}, '¡Ganaste!'),
         h('p', { style: { margin: '0.2rem 0 0.5rem' } }, `Tabla ${e.code} · ${st?.called.length || 0} cartas cantadas`),
         data.verified === true ? h('p', { class: 'ok-badge' }, icon('shield', 18), 'Baraja verificada: el cantor no hizo trampa') : null,
+        this.chainBlock(),
         h('div', {}, h('button', { class: 'btn', onclick: () => this.hideOverlay() }, 'Ver mi tabla')),
       );
     } else if (kind === 'lost') {
@@ -447,6 +464,7 @@ export class PlayerView {
         h('h2', {}, `¡Lotería de ${data.winners.length > 1 ? `${data.winners.slice(0, -1).map((x) => x.n).join(', ')} y ${data.winners[data.winners.length - 1].n}` : w.n}!`),
         tablaCanvas(tabla, { line, cardW: 44 }),
         data.verified === true ? h('p', { class: 'ok-badge' }, icon('shield', 18), 'Baraja verificada con el compromiso del cantor') : data.verified === false ? h('p', {}, '⚠ La baraja revelada no coincide con el compromiso') : null,
+        this.chainBlock(),
         h('p', { class: 'note' }, this.practice ? 'La siguiente ronda empieza solita en unos segundos.' : 'Espera a que el cantor abra la siguiente ronda.'),
         btnGhost('Ver mi tabla', () => this.hideOverlay()),
       );
@@ -461,6 +479,51 @@ export class PlayerView {
       }
       this.measure();
     }
+  }
+
+  // --- resultado en la cadena ---------------------------------------------------------
+  // Bloque «Tu resultado» de la tarjeta de fin de ronda: el teléfono ya lo mandó
+  // solo; aquí se firma para que quede a tu nombre en el historial.
+  chainBlock() {
+    if (this.practice) return null;
+    this.el.chain = h('div', { class: 'p-chain' });
+    this.renderChain();
+    return this.el.chain;
+  }
+
+  renderChain() {
+    const box = this.el.chain;
+    if (!box?.isConnected && this.overlay) return;
+    if (!box) return;
+    const e = this.e;
+    const { status, error } = e.result;
+    const marked = popcount(maskOf(e.marks));
+    const spin = (text) => h('p', {}, h('span', { class: 'spin' }), text);
+    const parts = [h('div', { class: 'p-chain-head' }, icon('shield', 16), 'Historial en la cadena')];
+    if (!e.acked && status === 'none') {
+      parts.push(h('p', { class: 'note' }, 'Tu tabla no quedó registrada en esta ronda, así que no entra al historial.'));
+    } else {
+      parts.push(h('p', { class: 'p-chain-score' }, 'Marcaste ', h('b', {}, `${marked} de 16`), ' casillas · tabla ', h('b', {}, e.code)));
+      if (status === 'none' || status === 'sending') parts.push(spin('Mandando tu resultado al cantor…'));
+      else if (status === 'received') {
+        parts.push(h('p', { class: 'note' }, `El cantor ya lo tiene. Fírmalo para que quede a nombre de «${e.name}» en el historial on-chain (no cuesta nada).`));
+        parts.push(h('button', { class: 'btn btn-primary', onclick: () => this.signResult() }, icon('check', 18), 'Firmar mi resultado'));
+      } else if (status === 'signing') parts.push(spin('Aprueba la firma en tu Polkadot App…'));
+      else if (status === 'signedSending') parts.push(spin('Mandando tu firma al cantor…'));
+      else if (status === 'signedReceived') parts.push(h('p', { class: 'ok-badge' }, icon('check', 18), 'Firmado. Queda en el historial cuando el cantor lo guarde.'));
+      else if (status === 'lost') {
+        parts.push(h('p', { class: 'note' }, 'El cantor no confirmó tu resultado.'));
+        parts.push(h('button', { class: 'btn btn-ghost', onclick: () => e.retryResult() }, icon('refresh', 18), 'Reintentar'));
+      }
+      if (error) parts.push(h('p', { class: 'note p-chain-err' }, error));
+    }
+    box.replaceChildren(...parts);
+    this.measure?.();
+  }
+
+  async signResult() {
+    const res = await this.e.signResult((text) => signText(text));
+    if (!res.ok && res.reason === 'over') toast('Ya empezó otra ronda: esa firma ya no cuenta', 'warn', 4000);
   }
 
   confirmExit() {

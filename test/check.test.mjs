@@ -58,6 +58,8 @@ const BAD = [
   ['correo personal', (d) => add(d, 'docs/contacto.md', '# Contacto\n\nEscríbeme a alguien@empresa.mx\n'), /correo alguien@empresa\.mx/],
   ['token de GitHub', (d) => add(d, 'src/secreto.js', `export const t = 'ghp_${'a1B2c3D4e5'.repeat(3)}';\n`), /token de GitHub/],
   ['llave privada', (d) => add(d, 'docs/llave.md', '-----BEGIN PRIVATE KEY-----\nabc\n'), /llave privada/],
+  ['llave privada en hex', (d) => add(d, 'src/semilla.js', `export const k = '0x${'9f3a'.repeat(16)}';\n`), /posible llave privada/],
+  ['firmante sin fijar', (d) => edit(d, 'package.json', (s) => s.replace('"@parity/product-sdk-signer": "0.14.4"', '"@parity/product-sdk-signer": "^0.14.4"')), /product-sdk-signer debe fijarse/],
   ['nombre de archivo con espacios', (d) => add(d, 'docs/img/Captura Final.png', 'x'), /espacios o caracteres no ASCII/],
   ['imagen con mayúsculas', (d) => add(d, 'docs/img/Captura.png', 'x'), /minúsculas/],
   ['package.json sin licencia', (d) => edit(d, 'package.json', (s) => s.replace('"license": "MIT"', '"license": "ISC"')), /license debe ser MIT/],

@@ -28,7 +28,7 @@ Más: [portada](docs/img/01-portada-escritorio.png) · [tableta](docs/img/08-tab
 
 ## Índice
 
-[Qué es](#qué-es) · [Cómo se juega](#cómo-se-juega) · [Inicio rápido](#inicio-rápido) · [Estructura](#estructura) · [Verificación](#verificación) · [Salas grandes](#salas-grandes-25-jugadores-o-más) · [Juego limpio](#juego-limpio) · [Publicar](#publicar) · [Documentación](#documentación) · [Pendientes](#pendientes) · [Licencia y créditos](#licencia-y-créditos)
+[Qué es](#qué-es) · [Cómo se juega](#cómo-se-juega) · [Inicio rápido](#inicio-rápido) · [Estructura](#estructura) · [Verificación](#verificación) · [Salas grandes](#salas-grandes-25-jugadores-o-más) · [Juego limpio](#juego-limpio) · [Historial en la cadena](#historial-en-la-cadena) · [Publicar](#publicar) · [Documentación](#documentación) · [Pendientes](#pendientes) · [Licencia y créditos](#licencia-y-créditos)
 
 ## Qué es
 
@@ -101,9 +101,11 @@ completo; el botón **+100 (carga)** del cantor llena la sala de jugadores simul
 │   ├── cards/            # las 54 cartas: datos, versos y arte en canvas
 │   ├── game/             # motor: cantor, jugador, reglas, criptografía, bots
 │   ├── net/              # protocolo, filtro de Bloom, transportes, almacenamiento
+│   ├── chain/            # historial en Asset Hub: formato, firmas, contrato, sello y lectura
 │   ├── three/            # escenas 3D (portada, cantor, tabla) y efectos
 │   └── ui/               # pantallas, HUD, sonido y voz
-├── test/                 # protocolo, partida de 30, salas de 100, empates, verificación
+├── contract/             # LoteriaRegistry (Solidity → PolkaVM), pruebas y deploy
+├── test/                 # protocolo, partida de 30, salas de 100, empates, historial, verificación
 ├── scripts/
 │   ├── check.mjs         # verificación del repositorio (sin dependencias)
 │   └── carga.mjs         # prueba de carga del motor
@@ -168,6 +170,14 @@ red del evento:** lee [`docs/evento.md`](docs/evento.md).
 - Al terminar la ronda el cantor revela la semilla y cada teléfono comprueba que el compromiso coincide y que
   las cartas salieron en ese orden.
 
+## Historial en la cadena
+
+Al terminar cada ronda, cada teléfono le manda al cantor su resultado (tabla y casillas marcadas) y el jugador
+puede **firmarlo** con un toque, gratis. El cantor lo guarda todo en el contrato `LoteriaRegistry` de Asset
+Hub con **Guardar en la cadena**, y la pantalla **Historial** muestra cada ronda verificada: semilla contra
+compromiso, firma de cada jugador y casillas contra cartas cantadas. Detalle, formato y despliegue del
+contrato en [`docs/historial.md`](docs/historial.md).
+
 ## Publicar
 
 Destino: Products Devnet con `pad` → `loteria-on-chain.dot` (detalle, requisitos y advertencias en
@@ -189,12 +199,14 @@ en Bulletin caduca a los ~14 días: republica la semana del evento.
 | [`docs/diseno.md`](docs/diseno.md) | materiales, tokens, componentes, layouts y cómo cambiar la interfaz sin romper el 3D |
 | [`docs/deploy.md`](docs/deploy.md) | publicar, después de publicar, caducidad |
 | [`docs/evento.md`](docs/evento.md) | guía para una sala grande: qué está medido, qué no y el piloto recomendado |
+| [`docs/historial.md`](docs/historial.md) | historial en la cadena: qué se guarda, firmas, verificación y despliegue del contrato |
 
 ## Pendientes
 
 - [ ] Piloto con teléfonos reales (5 → 15–20 → 30) en el Wi-Fi del recinto; es lo único que valida el Statement Store real.
 - [ ] Republicar la semana del evento (Bulletin caduca a los ~14 días).
 - [ ] Confirmar que el Host concede `StatementStoreAllowance` a ~100 cuentas a la vez.
+- [ ] Desplegar `LoteriaRegistry` y probar el sello desde Polkadot Desktop y la firma desde varios teléfonos.
 - [ ] Idea: QR con la dirección `.dot` en la pantalla del cantor para entrar más rápido.
 
 ## Licencia y créditos

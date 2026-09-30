@@ -28,6 +28,7 @@ prueban en dos pestañas del mismo navegador.
 |---|---|---|
 | `src/game/` | Motor sin interfaz: `cantor.js`, `player.js`, `rules.js` (figuras), `crypto.js` (baraja y tablas deterministas), `bots.js` (jugadores simulados), `emitter.js` | `net/`, `@noble/hashes` |
 | `src/net/` | `protocol.js` (mensajes y límites), `bloom.js` (confirmaciones), `transport.js` (bus local + detección del Host), `hostTransport.js` (Statement Store), `storage.js` | SDK de Polkadot |
+| `src/chain/` | Historial en Asset Hub: `record.js` (formato y verificación), `wallet.js` (cuentas y firmas), `registry.js` (contrato), `seal.js` (guardar una ronda), `history.js` (leer) | `polkadot-api`, `viem`, `@scure/sr25519` |
 | `src/cards/` | Las 54 cartas: datos y versos (`deck.js`), primitivas de dibujo (`painter.js`), ilustraciones en canvas (`art1-3.js`) | — |
 | `src/three/` | Escenas three.js: portada, cantor, tabla del jugador, efectos | `three` |
 | `src/ui/` | Pantallas y HUD (`app.js`, `cantorView.js`, `playerView.js`), sonido y voz (`audio.js`), utilidades DOM | `game/`, `three/` |
@@ -43,8 +44,9 @@ statement con `topic1 = blake2b("loteria-en-cadena/v1")` y, aquí, `topic2 = sal
 | Mensaje | `t` | Quién lo publica | Canal (último escribe gana) | Contenido |
 |---|---|---|---|---|
 | Estado | `s` | Cantor | `st/<sala>` | ronda `g`, fase `ph` (`L` lobby · `P` juego · `W` ganó alguien), figura, cartas cantadas, ritmo, compromiso de la baraja, ganadores, filtro de confirmaciones `k` |
-| Registro | `j` | Jugador | `j/<sala>/<hash>` | ronda, hash de 8 hex de su tabla, nombre |
+| Registro | `j` | Jugador | `j/<sala>/<jugador>` | ronda, hash de 8 hex de su tabla, nombre, id fijo del jugador `p` y hora de su tabla `v` (una tabla nueva reemplaza a la anterior) |
 | Reclamo | `c` | Jugador | `c/<sala>/<hash>` | ronda, código de 6 caracteres de su tabla, nombre |
+| Resultado | `f` | Jugador | `f/<sala>/<jugador>` | al terminar la ronda: código de su tabla, casillas marcadas, nombre y, si firmó, llave y firma sr25519 ([historial](historial.md)) |
 
 Cada cuenta tiene uno o dos mensajes vivos (el estado del cantor; o registro + reclamo de un jugador),
 muy por debajo del tope de ~1 KB por cuenta del SDK. El TTL por defecto es de 30 s: el cantor republica
@@ -60,6 +62,9 @@ mensaje perdido se corrige solo. Las cartas cantadas viajan **completas** en cad
 3. **Ganador (`W`).** El cantor verifica el reclamo contra las cartas cantadas. Si la tabla estaba
    registrada a tiempo gana de inmediato; los empates que lleguen en 6 s se reconocen (hasta 3). Si se
    registró tarde, queda **pendiente** y el cantor la aprueba a mano. Al final revela la semilla.
+   Cada teléfono le manda su **resultado** (tabla y casillas marcadas) y el filtro `k` del estado lo
+   confirma; si el jugador lo firma, la firma lo reemplaza. El cantor puede guardar la ronda en la cadena
+   ([historial](historial.md)).
 4. **Nueva ronda.** `g` sube en uno, el cantor olvida los registros y los teléfonos se registran solos.
 
 ## Juego limpio (compromiso y revelación)

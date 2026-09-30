@@ -1,9 +1,10 @@
 // Motor del cantor: reparte la baraja comprometida, registra tablas,
 // verifica cada ¡Lotería! y publica el estado en el Statement Store.
 import { Emitter } from './emitter.js';
-import { buildState, parseJoin, parseClaim, topicFor, stateChannel, clip } from '../net/protocol.js';
-import { randomRoom, randomSeed, deckFromSeed, commitOf, tablaFromCode, tablaHash, isValidCode } from './crypto.js';
+import { buildState, parseJoin, parseClaim, parseResult, topicFor, stateChannel, clip } from '../net/protocol.js';
+import { randomRoom, randomSeed, deckFromSeed, commitOf, tablaFromCode, tablaHash, signedHash, isValidCode } from './crypto.js';
 import { checkWin } from './rules.js';
+import { KIND, roundId, resultMessage, verifySignature, cellsOf } from '../chain/record.js';
 
 const HEARTBEAT_MS = 5000;
 const START_DELAY_MS = 3800;
@@ -59,6 +60,8 @@ export class CantorEngine extends Emitter {
       called: [],
       registered: new Map(),
       owners: new Map(),
+      results: new Map(),
+      sealed: null,
       winners: [],
       rejected: [],
       pending: null,
@@ -87,6 +90,8 @@ export class CantorEngine extends Emitter {
       called: saved.called || [],
       registered: new Map(saved.registered || []),
       owners: new Map(),
+      results: new Map(saved.results || []),
+      sealed: saved.sealed || null,
       winners: saved.winners || [],
       rejected: saved.rejected || [],
       pending: null,
@@ -147,6 +152,9 @@ export class CantorEngine extends Emitter {
     } else if (data.t === 'c') {
       const c = parseClaim(data);
       if (c && c.room === this.s.room) this._onClaim(c);
+    } else if (data.t === 'f') {
+      const f = parseResult(data);
+      if (f && f.room === this.s.room) this._onResult(f);
     }
   }
 
@@ -197,9 +205,16 @@ export class CantorEngine extends Emitter {
     this._save();
   }
 
-  // Tablas oídas hace poco, las más recientes primero (alimentan el filtro de confirmaciones)
+  // Tablas oídas hace poco, las más recientes primero (alimentan el filtro de confirmaciones).
+  // En la victoria se confirman los resultados que ya llegaron.
   ackList() {
     const cutoff = Date.now() - ACK_RECENT_MS;
+    if (this.s.phase === 'W') {
+      return [...this.s.results.values()]
+        .filter((r) => r.seen >= cutoff)
+        .sort((a, b) => b.seen - a.seen)
+        .map((r) => (r.kind === KIND.SIGNED ? signedHash(r.code) : tablaHash(r.code)));
+    }
     return [...this.s.registered.entries()]
       .filter(([, v]) => (v.seen || v.t) >= cutoff)
       .sort((a, b) => (b[1].seen || b[1].t) - (a[1].seen || a[1].t))
@@ -240,6 +255,78 @@ export class CantorEngine extends Emitter {
       this.emit('pending', { ...s.pending });
       this.publishState();
     }
+  }
+
+  // Resultado de un jugador al terminar la ronda: su tabla, lo que marcó y su firma
+  _onResult(f) {
+    const s = this.s;
+    if (f.g !== s.g || s.phase !== 'W' || !s.commit) return;
+    const h = tablaHash(f.k);
+    const reg = s.registered.get(h);
+    if (!reg) return; // esa tabla no jugó esta ronda
+    const tabla = tablaFromCode(f.k);
+    const called = new Set(s.called);
+    if (cellsOf(f.mask).some((cell) => !called.has(tabla[cell]))) return; // marcó cartas que no salieron
+    let kind = KIND.UNSIGNED;
+    if (f.sig) {
+      const msg = resultMessage({ room: s.room, g: s.g, commit: s.commit, code: f.k, mask: f.mask, name: f.n });
+      if (verifySignature(msg, f.sig, f.pubkey)) kind = KIND.SIGNED;
+    }
+    const now = Date.now();
+    const prev = s.results.get(h);
+    // Lo firmado no se reemplaza; lo que no trae nada nuevo solo se vuelve a confirmar
+    if (prev && (prev.kind === KIND.SIGNED || (kind === KIND.UNSIGNED && prev.mask === f.mask))) {
+      prev.seen = now;
+      this._schedulePublish(600);
+      return;
+    }
+    const r = { kind, code: f.k, mask: f.mask, name: kind === KIND.SIGNED ? f.n : reg.n, late: !!reg.late, seen: now };
+    if (kind === KIND.SIGNED) {
+      r.pubkey = f.pubkey;
+      r.sig = f.sig;
+    }
+    s.results.set(h, r);
+    this.emit('result', { h, ...r, count: this.resultCounts() });
+    this._schedulePublish(600);
+    this._save();
+  }
+
+  resultCounts() {
+    let signed = 0;
+    for (const r of this.s.results.values()) if (r.kind === KIND.SIGNED) signed++;
+    return { players: this.s.registered.size, results: this.s.results.size, signed };
+  }
+
+  // Lo que se guarda en la cadena al cerrar la ronda: todos los que jugaron.
+  // Quien no mandó resultado queda con su apodo y la huella de su tabla; si
+  // ganó, su tabla ya se conoce (la reveló al cantar).
+  roundRecord() {
+    const s = this.s;
+    if (s.phase !== 'W' || !s.deckSeed) return null;
+    const winnerCodes = new Map(s.winners.map((w) => [tablaHash(w.k), w.k]));
+    const players = [...s.registered.entries()].map(([h, reg]) => {
+      const r = s.results.get(h);
+      if (r?.kind === KIND.SIGNED) return { kind: KIND.SIGNED, late: r.late, name: r.name, pubkey: r.pubkey, sig: r.sig, code: r.code, mask: r.mask };
+      if (r) return { kind: KIND.UNSIGNED, late: r.late, name: r.name, code: r.code, mask: r.mask };
+      if (winnerCodes.has(h)) return { kind: KIND.UNSIGNED, late: !!reg.late, name: reg.n, code: winnerCodes.get(h), mask: null };
+      return { kind: KIND.HIDDEN, late: !!reg.late, name: reg.n, h };
+    });
+    // Tablas ganadoras que el cantor aprobó sin registro (verificación en persona)
+    for (const w of s.winners) {
+      if (!s.registered.has(tablaHash(w.k))) players.push({ kind: KIND.UNSIGNED, late: true, name: w.n, code: w.k, mask: null });
+    }
+    return {
+      id: roundId(s.room, s.g, s.commit),
+      header: { room: s.room, g: s.g, pattern: s.pattern, commit: s.commit, seed: s.deckSeed, called: [...s.called], winners: s.winners, roomName: s.roomName },
+      players,
+    };
+  }
+
+  // Lo que ya quedó guardado de esta ronda: { id, block, keys: [llave de cada registro sellado] }
+  markSealed(info) {
+    this.s.sealed = info;
+    this.emit('sealed', info);
+    this._save();
   }
 
   verify(code) {
@@ -419,6 +506,8 @@ export class CantorEngine extends Emitter {
     s.paused = false;
     s.registered = new Map();
     s.owners = new Map();
+    s.results = new Map();
+    s.sealed = null;
     this.deck = null;
     this.emit('lobby', this.snapshot());
     this.publishState();
@@ -453,7 +542,7 @@ export class CantorEngine extends Emitter {
     if (!s) return;
     s.q = Date.now();
     this._salt = (this._salt + 1) & 63;
-    const msg = buildState({ ...s, playerCount: s.registered.size, acks: s.phase === 'W' ? [] : this.ackList(), salt: this._salt });
+    const msg = buildState({ ...s, playerCount: s.registered.size, acks: this.ackList(), salt: this._salt });
     this.t
       .publish(msg, { topic2: topicFor(s.room), channel: stateChannel(s.room) })
       .then((r) => {
@@ -489,6 +578,8 @@ export class CantorEngine extends Emitter {
         deckSeed: s.deckSeed,
         called: s.called,
         registered: [...s.registered.entries()],
+        results: [...s.results.entries()],
+        sealed: s.sealed,
         winners: s.winners,
         rejected: s.rejected,
         savedAt: Date.now(),

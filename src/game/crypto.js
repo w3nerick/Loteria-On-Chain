@@ -95,3 +95,5 @@ export const deckFromSeed = (seed) => deriveOrder('baraja', seed, 54);
 export const tablaFromCode = (code) => deriveOrder('tabla', code, 54).slice(0, 16);
 export const commitOf = (seed) => sha256hex(`compromiso:${seed}`).slice(0, 16);
 export const tablaHash = (code) => sha256hex(`registro:${code}`).slice(0, 8);
+// Confirmación de un resultado firmado (distinta de la del resultado sin firma)
+export const signedHash = (code) => sha256hex(`firma:${code}`).slice(0, 8);

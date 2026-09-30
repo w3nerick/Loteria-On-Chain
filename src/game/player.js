@@ -1,15 +1,19 @@
 // Motor del jugador: descubre salas, registra su tabla, sigue las cartas,
 // verifica localmente su figura y canta ¡Lotería!.
 import { Emitter } from './emitter.js';
-import { parseState, buildJoin, buildClaim, topicFor, joinChannel, claimChannel, clip } from '../net/protocol.js';
+import { parseState, buildJoin, buildClaim, buildResult, topicFor, joinChannel, claimChannel, resultChannel, clip } from '../net/protocol.js';
 import { AckWatcher } from '../net/bloom.js';
-import { randomCode, randomPlayerId, isValidPlayerId, tablaFromCode, tablaHash, commitOf, deckFromSeed, isValidCode } from './crypto.js';
+import { randomCode, randomPlayerId, isValidPlayerId, tablaFromCode, tablaHash, signedHash, commitOf, deckFromSeed, isValidCode } from './crypto.js';
 import { checkWin, bestProgress } from './rules.js';
+import { maskOf, resultMessage } from '../chain/record.js';
 
 // Reintentos de registro: rápidos al principio (un mensaje perdido no debe costarte
 // llegar «tarde») y cada vez más espaciados para no saturar la red.
 const JOIN_RETRY_MS = [1800, 3200, 5000, 7000, 9000];
 const CLAIM_RETRY_MS = 3000;
+// Resultado al terminar la ronda: se reintenta hasta que el cantor lo confirma
+const RESULT_RETRY_MS = [2000, 3500, 5000, 7000, 9000];
+const RESULT_MAX_TRIES = 14;
 const ROOM_STALE_MS = 25000;
 
 const FUN_NAMES = ['Frijolito', 'Tamalito', 'Chapulín', 'Nopalito', 'Piloncillo', 'Cocada', 'Churro', 'Elotito', 'Mazapán', 'Chilito', 'Pozolito', 'Jicamita'];
@@ -45,6 +49,13 @@ export class PlayerEngine extends Emitter {
     this.prefs = { marker: 'frijol', hints: true, sound: true };
     this._joinTimer = null;
     this._claimTimer = null;
+    // Resultado de la ronda: 'none' · 'sending' · 'received' · 'signing' ·
+    // 'signedSending' · 'signedReceived' · 'lost' (el cantor nunca lo confirmó)
+    this.result = { status: 'none', error: null };
+    this._signed = null;
+    this._resultAck = null;
+    this._resultSent = 0;
+    this._resultTimer = null;
     this.unsub = null;
   }
 
@@ -68,6 +79,8 @@ export class PlayerEngine extends Emitter {
   destroy() {
     clearTimeout(this._joinTimer);
     clearTimeout(this._claimTimer);
+    clearTimeout(this._resultTimer);
+    clearTimeout(this._resultUpd);
     clearInterval(this._roomsTicker);
     this.unsub?.();
   }
@@ -144,6 +157,7 @@ export class PlayerEngine extends Emitter {
     this.state = null;
     clearTimeout(this._joinTimer);
     clearTimeout(this._claimTimer);
+    clearTimeout(this._resultTimer);
     this.emit('left', {});
   }
 
@@ -183,6 +197,10 @@ export class PlayerEngine extends Emitter {
       clearTimeout(this._joinTimer);
       this._joinTimer = null;
       clearTimeout(this._claimTimer);
+      clearTimeout(this._resultTimer);
+      this._signed = null;
+      this._resultAck = null;
+      this._setResult('none');
       // ¿Recuperamos frijoles guardados de esta misma ronda?
       const sm = this._savedMarks;
       if (sm && sm.room === st.room && sm.g === st.g && sm.code === this.code) this.marks = new Set(sm.cells);
@@ -193,7 +211,7 @@ export class PlayerEngine extends Emitter {
     if (!prev || prev.phase !== st.phase || newGame) this.emit('phase', st);
 
     // Solo se cree la confirmación tras haber enviado el registro y verse en dos estados distintos
-    if (!this.acked && this._joinSent > 0 && this._ack.feed(st.bloom)) {
+    if (!this.acked && this._joinSent > 0 && st.phase !== 'W' && this._ack.feed(st.bloom)) {
       this.acked = true;
       clearTimeout(this._joinTimer);
       this._joinTimer = null;
@@ -212,11 +230,18 @@ export class PlayerEngine extends Emitter {
       const mine = st.winners.some((w) => w.k === this.code);
       this._verifyDeck(st);
       this.emit('win', { winners: st.winners, mine, verified: this.verified });
+      // Terminó la ronda: el teléfono manda solo su resultado (sin firma) para el historial
+      if (this.acked && this.result.status === 'none') this._sendResult(true);
     } else if (st.phase === 'W' && prev && prev.winners.length !== st.winners.length) {
       const mine = st.winners.some((w) => w.k === this.code);
       this.emit('win', { winners: st.winners, mine, verified: this.verified, update: true });
     }
 
+    if (st.phase === 'W' && this._resultAck && this._resultSent > 0 && this._resultAck.feed(st.bloom)) {
+      this._resultAck = null;
+      clearTimeout(this._resultTimer);
+      this._setResult(this._signed ? 'signedReceived' : 'received');
+    }
     if (st.pending?.k === this.code && prev?.pending?.k !== this.code) this.emit('pendingMine', {});
     if (this.claimed && st.rejected.includes(this.code)) {
       this.claimed = false;
@@ -283,7 +308,96 @@ export class PlayerEngine extends Emitter {
     if (this.marks.has(cell)) return 'already';
     this.marks.add(cell);
     this._save();
+    // Si ya terminó la ronda y no ha firmado, se actualiza el resultado que tiene el cantor
+    if (this.state.phase === 'W' && this.acked && !this._signed && this.result.status !== 'none') {
+      clearTimeout(this._resultUpd);
+      this._resultUpd = setTimeout(() => this._sendResult(false), 1500);
+    }
     return 'ok';
+  }
+
+  // --- resultado de la ronda (historial en la cadena) -----------------------------
+  _setResult(status, error = null) {
+    if (this.result.status === status && this.result.error === error) return;
+    this.result = { status, error };
+    this.emit('result', this.result);
+  }
+
+  _resultPayload() {
+    const s = this._signed;
+    return s
+      ? buildResult(this.room, this.state.g, this.code, s.mask, s.name, s.pubkey, s.sig)
+      : buildResult(this.room, this.state.g, this.code, maskOf(this.marks), this.name);
+  }
+
+  _sendResult(spread) {
+    if (!this.room || this.state?.phase !== 'W') return;
+    clearTimeout(this._resultTimer);
+    const g = this.state.g;
+    this._resultAck = new AckWatcher(this._signed ? signedHash(this.code) : this.h);
+    this._resultSent = 0;
+    this._setResult(this._signed ? 'signedSending' : 'sending');
+    const gen = (this._resultGen = (this._resultGen || 0) + 1); // un envío nuevo detiene al anterior
+    let tries = 0;
+    const send = async () => {
+      this._resultTimer = null;
+      if (gen !== this._resultGen || !this.room || this.state?.phase !== 'W' || this.state.g !== g || !this._resultAck) return;
+      tries += 1;
+      this._resultSent += 1;
+      const r = await this.t.publish(this._resultPayload(), {
+        topic2: topicFor(this.room),
+        channel: resultChannel(this.room, this.pid),
+      });
+      this._net(r);
+      if (gen !== this._resultGen || !this._resultAck) return;
+      if (tries >= RESULT_MAX_TRIES) {
+        this._setResult('lost');
+        return;
+      }
+      const base = RESULT_RETRY_MS[Math.min(tries - 1, RESULT_RETRY_MS.length - 1)];
+      this._resultTimer = setTimeout(send, base * (0.85 + Math.random() * 0.3));
+    };
+    this._resultTimer = setTimeout(send, spread ? this._spread() : 50);
+  }
+
+  // El cantor nunca confirmó el resultado: se vuelve a intentar
+  retryResult() {
+    if (this.state?.phase === 'W' && this.acked) this._sendResult(false);
+  }
+
+  // ¿Puede firmar su resultado? Solo quien jugó la ronda y mientras no empiece otra
+  canSignResult() {
+    return !!(this.room && this.state?.phase === 'W' && this.state.commit && this.acked && !this._signed && this.result.status !== 'signing');
+  }
+
+  resultMessage() {
+    if (!this.state) return null;
+    return resultMessage({ room: this.room, g: this.state.g, commit: this.state.commit, code: this.code, mask: maskOf(this.marks), name: clip(this.name, 16) });
+  }
+
+  // `sign(texto)` firma con la cuenta del jugador y devuelve { pubkey, sig } en hex
+  async signResult(sign) {
+    if (!this.canSignResult()) return { ok: false, reason: 'cannot' };
+    const st = this.state;
+    const mask = maskOf(this.marks);
+    const name = clip(this.name, 16);
+    const message = resultMessage({ room: this.room, g: st.g, commit: st.commit, code: this.code, mask, name });
+    const before = this.result.status;
+    this._setResult('signing');
+    let signed;
+    try {
+      signed = await sign(message);
+    } catch (e) {
+      this._setResult(before, String(e?.message || e));
+      return { ok: false, reason: 'sign', error: String(e?.message || e) };
+    }
+    if (this.state?.g !== st.g || this.state.phase !== 'W') {
+      this._setResult('none');
+      return { ok: false, reason: 'over' };
+    }
+    this._signed = { pubkey: signed.pubkey, sig: signed.sig, mask, name };
+    this._sendResult(false);
+    return { ok: true };
   }
 
   progress() {

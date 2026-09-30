@@ -38,8 +38,12 @@
     "@fontsource/rye": "^5.3.0",
     "@noble/hashes": "^1.8.0",
     "@parity/product-sdk-host": "0.19.1",
+    "@parity/product-sdk-signer": "0.14.4",
     "@parity/product-sdk-statement-store": "0.6.9",
-    "three": "^0.180.0"
+    "@scure/sr25519": "2.4.0",
+    "polkadot-api": "~2.2.1",
+    "three": "^0.180.0",
+    "viem": "^2.57.1"
   },
   "devDependencies": {
     "vite": "^6.4.3",
