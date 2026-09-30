@@ -206,7 +206,7 @@ en Bulletin caduca a los ~14 días: republica la semana del evento.
 - [ ] Piloto con teléfonos reales (5 → 15–20 → 30) en el Wi-Fi del recinto; es lo único que valida el Statement Store real.
 - [ ] Republicar la semana del evento (Bulletin caduca a los ~14 días).
 - [ ] Confirmar que el Host concede `StatementStoreAllowance` a ~100 cuentas a la vez.
-- [ ] Desplegar `LoteriaRegistry` y probar el sello desde Polkadot Desktop y la firma desde varios teléfonos.
+- [ ] Probar el sello del historial desde Polkadot Desktop y la firma desde varios teléfonos (`LoteriaRegistry` ya está desplegado).
 - [ ] Idea: QR con la dirección `.dot` en la pantalla del cantor para entrar más rápido.
 
 ## Licencia y créditos

@@ -155,6 +155,10 @@ await check('Privacidad y secretos', ({ fail, note }) => {
     '0xd6eec26135305a8ad257a20d003357284c8aa03d0bdb2b357ab0a22371e11ef2',
     '0xe6c30d6e148f250b887105237bcaa5cb9f16dd203bf7b5b9d4f1da7387cb86ec',
   ]);
+  // …y el hash de la transacción que desplegó el contrato (público en la cadena)
+  if (exists('contract/deployments.json')) {
+    for (const d of Object.values(JSON.parse(read('contract/deployments.json')))) if (d?.tx) PUBLIC_HEX.add(String(d.tx).toLowerCase());
+  }
   const email = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g;
   let scanned = 0;
   for (const f of FILES) {

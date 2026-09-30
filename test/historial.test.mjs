@@ -89,7 +89,7 @@ test('100 jugadores se reparten en partes que caben en una transacción', () => 
     mask: i,
   }));
   const parts = R.splitPlayers(list);
-  assert.ok(parts.length >= 1 && parts.every((p) => p.bytes.length <= 12000 && p.count > 0));
+  assert.ok(parts.length >= 2 && parts.every((p) => p.bytes.length <= 6000 && p.count > 0));
   assert.equal(parts.reduce((n, p) => n + p.count, 0), 100);
   assert.deepEqual(parts.flatMap((p) => R.decodePlayers(p.bytes)), list);
 });
