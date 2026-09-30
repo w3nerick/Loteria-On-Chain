@@ -14,7 +14,9 @@ export const byteSize = (obj) => enc.encode(JSON.stringify(obj)).length;
 
 export const topicFor = (room) => `sala/${room}`;
 export const stateChannel = (room) => `st/${room}`;
-export const joinChannel = (room, h) => `j/${room}/${h}`;
+// El registro va en el canal del jugador (no de su tabla): si cambia de tabla,
+// el mensaje nuevo reemplaza al anterior en vez de sumar otro.
+export const joinChannel = (room, id) => `j/${room}/${id}`;
 export const claimChannel = (room, h) => `c/${room}/${h}`;
 
 export function encodeCalled(ids) {
@@ -118,14 +120,28 @@ export function parseState(m) {
 }
 
 // ---------------------------------------------------------------------------
-// Registro de tabla (jugador → cantor): solo el hash del código
-export function buildJoin(room, g, h, name) {
-  return { t: 'j', r: room, g, h, n: clip(name, 16) };
+// Registro de tabla (jugador → cantor): solo el hash del código.
+// `p` identifica al jugador (no a la tabla) y `v` es la hora en que eligió esa
+// tabla: con los dos, el cantor sabe que una tabla nueva reemplaza a la anterior.
+export function buildJoin(room, g, h, name, pid = null, v = 0) {
+  const m = { t: 'j', r: room, g, h, n: clip(name, 16) };
+  if (pid) {
+    m.p = pid;
+    m.v = v;
+  }
+  return m;
 }
 
 export function parseJoin(m) {
   if (!m || m.t !== 'j' || !isValidRoom(m.r) || !Number.isInteger(m.g) || !isHex(m.h, 8)) return null;
-  return { room: m.r, g: m.g, h: m.h, n: clip(m.n, 16) || 'Jugador' };
+  return {
+    room: m.r,
+    g: m.g,
+    h: m.h,
+    n: clip(m.n, 16) || 'Jugador',
+    p: isHex(m.p, 8) ? m.p : null,
+    v: Number.isSafeInteger(m.v) && m.v > 0 ? m.v : 0,
+  };
 }
 
 // ¡Lotería! (jugador → cantor): revela el código de su tabla

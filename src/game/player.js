@@ -3,7 +3,7 @@
 import { Emitter } from './emitter.js';
 import { parseState, buildJoin, buildClaim, topicFor, joinChannel, claimChannel, clip } from '../net/protocol.js';
 import { AckWatcher } from '../net/bloom.js';
-import { randomCode, tablaFromCode, tablaHash, commitOf, deckFromSeed, isValidCode } from './crypto.js';
+import { randomCode, randomPlayerId, isValidPlayerId, tablaFromCode, tablaHash, commitOf, deckFromSeed, isValidCode } from './crypto.js';
 import { checkWin, bestProgress } from './rules.js';
 
 // Reintentos de registro: rápidos al principio (un mensaje perdido no debe costarte
@@ -25,9 +25,11 @@ export class PlayerEngine extends Emitter {
     this.storage = storage;
     this.storageKey = storageKey;
     this.name = funName();
+    this.pid = randomPlayerId(); // quién eres en la sala, aunque cambies de tabla
     this.code = randomCode();
     this.tabla = tablaFromCode(this.code);
     this.h = tablaHash(this.code);
+    this.tablaV = Date.now(); // cuándo elegiste esta tabla: la más nueva reemplaza a la anterior
     this._ack = new AckWatcher(this.h);
     this.room = null;
     this.state = null;
@@ -51,6 +53,7 @@ export class PlayerEngine extends Emitter {
       const saved = await this.storage.get(this.storageKey);
       if (saved && saved.v === 1) {
         if (saved.name) this.name = clip(saved.name, 16);
+        if (isValidPlayerId(saved.pid)) this.pid = saved.pid;
         if (isValidCode(saved.code)) this._setCode(saved.code);
         if (saved.prefs) this.prefs = { ...this.prefs, ...saved.prefs };
         this._savedMarks = saved.marks || null;
@@ -73,6 +76,7 @@ export class PlayerEngine extends Emitter {
     this.code = code;
     this.tabla = tablaFromCode(code);
     this.h = tablaHash(code);
+    this.tablaV = Math.max(Date.now(), this.tablaV + 1);
     this._ack.reset(this.h);
   }
 
@@ -241,9 +245,9 @@ export class PlayerEngine extends Emitter {
       this._joinTimer = null;
       if (!this.room || !this.state || this.state.phase === 'W' || (this.acked && !oneShot)) return;
       this._joinSent += 1;
-      const r = await this.t.publish(buildJoin(this.room, this.state.g, this.h, this.name), {
+      const r = await this.t.publish(buildJoin(this.room, this.state.g, this.h, this.name, this.pid, this.tablaV), {
         topic2: topicFor(this.room),
-        channel: joinChannel(this.room, this.h),
+        channel: joinChannel(this.room, this.pid),
       });
       this._net(r);
       if (!this.acked && !oneShot && !this._joinTimer) {
@@ -334,6 +338,7 @@ export class PlayerEngine extends Emitter {
       this.storage.set(this.storageKey, {
         v: 1,
         name: this.name,
+        pid: this.pid,
         code: this.code,
         prefs: this.prefs,
         lastRoom: this.lastRoom || null,

@@ -239,3 +239,66 @@ test('el cantor puede retomar su sala guardada tras recargar la pantalla', async
   b.destroy();
   p.destroy();
 });
+
+test('cambiar de tabla en la sala no cuenta como otro jugador', { timeout: 60000 }, async () => {
+  const { buildJoin, joinChannel } = await import('../src/net/protocol.js');
+  const cantor = new CantorEngine({ transport: await mkTransport('cantor-t'), startDelay: 100, perPlayerDelay: 0 });
+  const room = cantor.createRoom('Cambio de tabla', { speed: 30 });
+  const pt = await mkTransport('jugador-t');
+  const p = new PlayerEngine({ transport: pt });
+  await p.init();
+  p.joinRoom(room);
+  assert.ok(await until(() => p.acked, 10000), 'primera tabla registrada');
+  const first = p.code;
+  const bean = cantor.players()[0].id;
+
+  // Dos cambios de tabla antes de empezar: sigue siendo un solo jugador, con la última tabla
+  for (let i = 0; i < 2; i++) {
+    assert.ok(p.newTabla());
+    assert.ok(await until(() => p.acked, 10000), `tabla nueva ${i + 1} registrada`);
+  }
+  assert.equal(cantor.players().length, 1, 'un solo jugador');
+  assert.equal(cantor.players()[0].h, p.h, 'con su tabla más nueva');
+  assert.equal(cantor.players()[0].id, bean, 'y el mismo frijolito en la pantalla del cantor');
+  assert.equal(cantor.verify(first).registered, false, 'la tabla anterior ya no está registrada');
+  assert.equal(cantor.verify(p.code).registered, true);
+
+  // Un registro viejo que llega tarde no regresa la tabla anterior
+  await pt.publish(buildJoin(room, 1, tablaHash(first), p.name, p.pid, 1), { topic2: topicFor(room), channel: `viejo/${room}` });
+  await sleep(300);
+  assert.equal(cantor.players().length, 1);
+  assert.equal(cantor.players()[0].h, p.h, 'se ignora el registro viejo');
+
+  // Otra cuenta que copia el identificador no puede cambiarle la tabla a nadie
+  const intruder = await mkTransport('intruso');
+  const otherCode = randomCode();
+  await intruder.publish(buildJoin(room, 1, tablaHash(otherCode), 'Intruso', p.pid, Date.now() + 60000), { topic2: topicFor(room), channel: joinChannel(room, p.pid) });
+  await sleep(300);
+  assert.equal(cantor.verify(p.code).registered, true, 'la tabla del jugador sigue registrada');
+  assert.equal(cantor.players().length, 2, 'el intruso cuenta aparte');
+
+  // Cambiar después de la primera carta: reemplaza, pero la tabla nueva queda tardía
+  cantor.startGame();
+  assert.ok(await until(() => cantor.s.phase === 'P' && p.state?.phase === 'P', 3000));
+  cantor.pause();
+  cantor.next();
+  const before = cantor.players().length;
+  p.state = { ...p.state, phase: 'L' }; // la interfaz no lo permite; forzamos el caso
+  assert.ok(p.newTabla());
+  assert.ok(await until(() => cantor.players().some((x) => x.h === p.h), 5000));
+  assert.equal(cantor.players().length, before, 'no se suma otro jugador');
+  assert.ok(cantor.players().find((x) => x.h === p.h).late, 'la tabla nueva es tardía');
+
+  // Retomar la sala conserva quién es quién
+  const mem = new Map();
+  cantor.storage = { get: async (k) => mem.get(k) ?? null, set: async (k, v) => mem.set(k, v) };
+  cantor._save();
+  await sleep(400);
+  const b = new CantorEngine({ transport: await mkTransport('cantor-t2') });
+  b.storage = cantor.storage;
+  b.restore(await b.loadSaved());
+  assert.equal(b.s.owners.get(p.pid), p.h, 'el índice jugador → tabla se reconstruye');
+  cantor.destroy();
+  b.destroy();
+  p.destroy();
+});

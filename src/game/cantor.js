@@ -58,6 +58,7 @@ export class CantorEngine extends Emitter {
       commit: null,
       called: [],
       registered: new Map(),
+      owners: new Map(),
       winners: [],
       rejected: [],
       pending: null,
@@ -85,12 +86,14 @@ export class CantorEngine extends Emitter {
       commit: saved.deckSeed ? commitOf(saved.deckSeed) : null,
       called: saved.called || [],
       registered: new Map(saved.registered || []),
+      owners: new Map(),
       winners: saved.winners || [],
       rejected: saved.rejected || [],
       pending: null,
       wonAt: 0,
       q: 0,
     };
+    for (const [h, v] of this.s.registered) this.s.owners.set(v.id || h, h);
     this.deck = this.s.deckSeed ? deckFromSeed(this.s.deckSeed) : null;
     this.expected = this.s.registered.size;
     this._start();
@@ -99,7 +102,7 @@ export class CantorEngine extends Emitter {
   }
 
   _start() {
-    if (!this.unsub) this.unsub = this.t.subscribe((data) => this._onMessage(data));
+    if (!this.unsub) this.unsub = this.t.subscribe((data, meta) => this._onMessage(data, meta));
     clearInterval(this._hb);
     this._hb = setInterval(() => this.publishState(), HEARTBEAT_MS);
   }
@@ -132,37 +135,61 @@ export class CantorEngine extends Emitter {
   }
 
   players() {
-    return [...this.s.registered.entries()].map(([h, v]) => ({ h, n: v.n, late: v.late, t: v.t }));
+    return [...this.s.registered.entries()].map(([h, v]) => ({ id: v.id || h, h, n: v.n, late: v.late, t: v.t }));
   }
 
   // --- mensajes entrantes --------------------------------------------------
-  _onMessage(data) {
+  _onMessage(data, meta) {
     if (!data || typeof data !== 'object' || !this.s) return;
     if (data.t === 'j') {
       const j = parseJoin(data);
-      if (j && j.room === this.s.room) this._onJoin(j);
+      if (j && j.room === this.s.room) this._onJoin(j, meta);
     } else if (data.t === 'c') {
       const c = parseClaim(data);
       if (c && c.room === this.s.room) this._onClaim(c);
     }
   }
 
-  _onJoin(j) {
+  _onJoin(j, meta) {
     const s = this.s;
     if (j.g !== s.g || s.phase === 'W') return;
     const onTime = s.phase === 'L' || (s.phase === 'P' && s.called.length === 0);
     const now = Date.now();
+    // Cuenta que firmó el mensaje (Host) o remitente (bus local)
+    const sg = meta?.signer || meta?.sender || null;
+    let id = j.p || j.h;
     const existing = s.registered.get(j.h);
+    const ownH = s.owners.get(id);
+    const prev = !existing && ownH && ownH !== j.h ? s.registered.get(ownH) : null;
+    if (prev) {
+      if (prev.sg && sg && prev.sg !== sg) {
+        // Otra cuenta con el mismo identificador: no puede cambiarle la tabla a nadie
+        id = j.h;
+      } else {
+        if (j.v < (prev.v || 0)) return; // registro viejo que llegó tarde
+        // Cambió de tabla: la nueva reemplaza a la anterior (sigue siendo un jugador).
+        // Si ya salió la primera carta, la tabla nueva cuenta como tardía.
+        s.registered.delete(ownH);
+        s.registered.set(j.h, { ...prev, n: j.n, v: j.v, late: prev.late || !onTime, seen: now });
+        s.owners.set(id, j.h);
+        this.emit('join', { id, h: j.h, n: j.n, late: prev.late || !onTime, count: s.registered.size, swap: true });
+        this._schedulePublish(600);
+        this._save();
+        return;
+      }
+    }
     if (!existing) {
       if (s.registered.size >= 500) return;
-      s.registered.set(j.h, { n: j.n, late: !onTime, t: now, seen: now });
+      s.registered.set(j.h, { id, sg, v: j.v, n: j.n, late: !onTime, t: now, seen: now });
+      s.owners.set(id, j.h);
       this._lastNewJoin = now;
-      this.emit('join', { h: j.h, n: j.n, late: !onTime, count: s.registered.size });
+      this.emit('join', { id, h: j.h, n: j.n, late: !onTime, count: s.registered.size });
     } else {
       existing.seen = now;
+      if (j.v > (existing.v || 0)) existing.v = j.v;
       if (existing.n !== j.n) {
         existing.n = j.n;
-        this.emit('join', { h: j.h, n: j.n, late: existing.late, count: s.registered.size, rename: true });
+        this.emit('join', { id: existing.id || j.h, h: j.h, n: j.n, late: existing.late, count: s.registered.size, rename: true });
       }
     }
     // Se responde con el filtro de confirmaciones del siguiente estado
@@ -391,6 +418,7 @@ export class CantorEngine extends Emitter {
     s.pending = null;
     s.paused = false;
     s.registered = new Map();
+    s.owners = new Map();
     this.deck = null;
     this.emit('lobby', this.snapshot());
     this.publishState();

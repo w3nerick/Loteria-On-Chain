@@ -39,6 +39,8 @@ function randomFrom(alpha, len) {
 export const randomCode = () => randomFrom(CODE_ALPHA, 6);
 export const randomRoom = () => randomFrom(ROOM_ALPHA, 4);
 export const randomSeed = () => bytesToHex(randBytes(16));
+export const randomPlayerId = () => bytesToHex(randBytes(4));
+export const isValidPlayerId = (s) => typeof s === 'string' && /^[0-9a-f]{8}$/.test(s);
 
 export function isValidCode(code) {
   return typeof code === 'string' && code.length === 6 && [...code].every((ch) => CODE_ALPHA.includes(ch));

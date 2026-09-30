@@ -174,11 +174,11 @@ export class CantorView {
     }
     const seen = new Set();
     players.forEach((p, i) => {
-      seen.add(p.h);
-      let bean = this.beans.get(p.h);
+      seen.add(p.id);
+      let bean = this.beans.get(p.id);
       if (!bean) {
         bean = h('i', { class: 'bean', style: { '--c': BEAN_COLORS[this.beans.size % BEAN_COLORS.length] } });
-        this.beans.set(p.h, bean);
+        this.beans.set(p.id, bean);
         E.beans.append(bean);
       }
       bean.classList.toggle('late', p.late);
@@ -193,7 +193,7 @@ export class CantorView {
 
     // Las últimas llegadas, con nombre (la más nueva resaltada)
     const newest = [...players].sort((a, b) => b.t - a.t).slice(0, RECENT_MAX);
-    const keep = new Set(newest.map((p) => p.h));
+    const keep = new Set(newest.map((p) => p.id));
     for (const [key, chip] of this.chips) {
       if (!keep.has(key)) {
         chip.remove();
@@ -201,17 +201,17 @@ export class CantorView {
       }
     }
     for (const p of [...newest].reverse()) {
-      let chip = this.chips.get(p.h);
+      let chip = this.chips.get(p.id);
       if (!chip) {
         chip = h('span', { class: 'pchip' });
-        this.chips.set(p.h, chip);
+        this.chips.set(p.id, chip);
         E.recent.prepend(chip);
       }
       chip.textContent = p.n;
       chip.classList.toggle('late', p.late);
       chip.title = p.late ? 'Llegó con la ronda empezada' : '';
     }
-    newest.forEach((p, i) => this.chips.get(p.h)?.classList.toggle('fresh', i === 0 && n > 0 && Date.now() - p.t < 2500));
+    newest.forEach((p, i) => this.chips.get(p.id)?.classList.toggle('fresh', i === 0 && n > 0 && Date.now() - p.t < 2500));
     clearTimeout(this._freshT);
     this._freshT = setTimeout(() => this.chips?.forEach((c) => c.classList.remove('fresh')), 2600);
     E.more.hidden = n <= RECENT_MAX;
@@ -358,7 +358,7 @@ export class CantorView {
     this.renderPlayers();
     // Con salas grandes llegan muchos a la vez: un solo «pop» cada tanto, no una ráfaga
     const now = performance.now();
-    if (!j.rename && now - this._lastPop > 160) {
+    if (!j.rename && !j.swap && now - this._lastPop > 160) {
       this._lastPop = now;
       sound.pop();
     }
