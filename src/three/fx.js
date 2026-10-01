@@ -52,6 +52,31 @@ export function blobShadow(w, h, opacity = 1) {
   return m;
 }
 
+// Luz de lámpara sobre la mesa: penumbra con un hueco suave del tamaño de la tabla
+// (w×h), para que el sarape se vea junto a ella y se apague hacia las orillas.
+export function tableVignette(w, h, { spread = 8, soft = 0.5, opacity = 0.8, color = '#120a2c' } = {}) {
+  const S = 512;
+  const tex = canvasTexture(S, S, (g) => {
+    g.globalAlpha = opacity;
+    g.fillStyle = color;
+    g.fillRect(0, 0, S, S);
+    g.globalAlpha = 1;
+    // El hueco se corta con su propia sombra difusa: el borde queda suave
+    const hw = S / spread;
+    const blur = (soft / w) * hw;
+    g.globalCompositeOperation = 'destination-out';
+    g.shadowColor = '#000';
+    g.shadowBlur = blur * 2;
+    g.shadowOffsetX = S * 4;
+    g.fillStyle = '#000';
+    g.beginPath();
+    if (g.roundRect) g.roundRect(S / 2 - hw / 2 - S * 4, S / 2 - hw / 2, hw, hw, hw * 0.06);
+    else g.rect(S / 2 - hw / 2 - S * 4, S / 2 - hw / 2, hw, hw);
+    g.fill();
+  });
+  return new THREE.Mesh(new THREE.PlaneGeometry(w * spread, h * spread), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+}
+
 // Fondo de noche con degradado
 export function nightBackdrop(width = 60, height = 34, top = '#0c0826', bottom = '#3b0f4f') {
   const tex = canvasTexture(16, 256, (g, w, h) => {
