@@ -240,6 +240,13 @@ button { font: inherit; color: inherit; }
 .home-steps .step { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.9rem 0.45rem 0.5rem; border-radius: 999px; font-family: var(--ui); font-size: 0.9rem; letter-spacing: 0.04em; }
 .home-steps b { display: grid; place-items: center; width: 1.7rem; height: 1.7rem; border-radius: 50%; background: var(--rosa); font-family: var(--display); font-weight: 400; }
 @media (min-width: 900px) and (min-height: 760px) { .home-steps { display: flex; } }
+/* Pantalla ancha: los dos botones en una fila y los enlaces junto al estado; el abanico gana alto */
+@media (min-width: 900px) and (min-aspect-ratio: 5/4) {
+  .home-actions { width: min(780px, 100%); grid-template-columns: 1fr 1fr; gap: 0.8rem 1rem; }
+  .home-actions .btn { min-height: 62px; }
+  .home-actions > .home-foot:nth-child(3) { justify-content: flex-end; }
+  .home-actions > .home-foot:nth-child(4) { justify-content: flex-start; align-items: center; }
+}
 
 /* Formularios */
 .panel {
@@ -418,6 +425,16 @@ input[type='range'] { width: 100%; accent-color: var(--rosa); }
 @keyframes fadeUp { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
 .c-hint { display: inline-block; font-family: var(--texto); font-style: italic; font-size: clamp(1.1rem, 2vw, 1.7rem); padding: 0.35em 0.9em; border-radius: 999px; background: var(--glass); border: 1px solid var(--glass-line); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 
+/* Sala de espera: el código al centro, grande; el panel lateral ya no lo repite */
+.c-joinbig { grid-column: 2; grid-row: 2; align-self: end; justify-self: center; display: none; justify-items: center; gap: 0.55rem; text-align: center; margin-bottom: 6px; }
+.cantor.lobby .c-joinbig { display: grid; animation: fadeUp 0.6s ease both; }
+.cantor.lobby .c-call, .cantor.lobby .c-room { display: none; }
+.c-joinbig .eyebrow { color: var(--cempasuchil); font-size: clamp(0.9rem, 1.25vw, 1.25rem); opacity: 1; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8); }
+.c-code-big { margin: 0.1rem 0 0.35rem; gap: clamp(8px, 1vw, 16px); }
+.c-code-big .tile { flex: none; width: clamp(5rem, min(8.5vw, 15vh), 10rem); max-width: none; font-size: clamp(3.4rem, min(6.4vw, 11vh), 7.6rem); border-radius: 18px; box-shadow: 0 8px 0 var(--rosa-osc), 0 8px 0 4px var(--tinta), 0 22px 36px rgba(0, 0, 0, 0.45); }
+.c-joinline { margin: 0; font-family: var(--texto); font-size: clamp(1.1rem, 1.75vw, 1.9rem); line-height: 1.25; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85); text-wrap: balance; }
+.c-joinline b { color: var(--cempasuchil); font-family: var(--ui); font-weight: 700; letter-spacing: 0.03em; }
+
 /* Barra de controles */
 .c-bar {
   grid-column: 1 / 4;
@@ -464,12 +481,12 @@ input[type='range'] { width: 100%; accent-color: var(--rosa); }
   justify-self: center;
   text-align: center;
   width: min(760px, 100%);
-  margin-top: 5vh;
+  margin-top: 16vh; /* debajo del papel picado y los foquitos */
   pointer-events: none;
   z-index: 2;
 }
-.c-banner .logo { font-size: clamp(3rem, 6.4vw, 7rem); animation: slam 0.7s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
-.c-banner .who { display: inline-block; margin-top: 0.6rem; padding: 0.2em 0.9em 0.28em; border-radius: 999px; background: var(--cempasuchil); color: var(--tinta); border: 3px solid var(--tinta); box-shadow: 0 5px 0 var(--tinta), 0 14px 24px rgba(0, 0, 0, 0.5); font-family: var(--display); font-size: clamp(1.4rem, 2.6vw, 2.6rem); animation: fadeUp 0.6s 0.3s ease both; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-banner .logo { font-size: clamp(3rem, min(6.4vw, 8.5vh), 7rem); animation: slam 0.7s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+.c-banner .who { display: inline-block; margin-top: 0.6rem; padding: 0.2em 0.9em 0.28em; border-radius: 999px; background: var(--cempasuchil); color: var(--tinta); border: 3px solid var(--tinta); box-shadow: 0 5px 0 var(--tinta), 0 14px 24px rgba(0, 0, 0, 0.5); font-family: var(--display); font-size: clamp(1.4rem, min(2.6vw, 3.4vh), 2.6rem); animation: fadeUp 0.6s 0.3s ease both; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @keyframes slam { from { transform: scale(2.6) rotate(-8deg); opacity: 0; } to { transform: none; opacity: 1; } }
 .c-proof { display: grid; gap: 6px; padding: 14px 16px; text-align: left; font-family: var(--ui); font-size: 0.95rem; animation: fadeUp 0.6s 0.6s ease both; }
 .c-proof h3 { margin: 0 0 0.2rem; display: flex; gap: 0.5rem; align-items: center; font-family: var(--ui); font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.95rem; color: var(--cempasuchil); }
@@ -702,6 +719,10 @@ body.in-player .toast { transform: translateY(14px) scale(0.96); }
   .c-banner { grid-column: 1; grid-row: 2 / 4; margin-top: 30px; }
   .c-banner .logo { font-size: 2.9rem; }
   .c-banner .who { font-size: 1.35rem; }
+  /* En vertical el código ya va en la barra de arriba */
+  .cantor.lobby .c-room { display: flex; }
+  .cantor.lobby .c-call { display: block; }
+  .cantor.lobby .c-joinbig { display: none; }
 }
 @media (max-width: 420px) {
   .patterns { grid-template-columns: 1fr; }

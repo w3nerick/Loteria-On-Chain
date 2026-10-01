@@ -112,9 +112,13 @@ export class CantorView {
     E.callName = h('div', { class: 'name' });
     E.verse = h('p', { class: 'verse' });
     E.call = h('div', { class: 'c-call', 'aria-live': 'assertive' }, E.num, E.callName, E.verse);
+    // Sala de espera en pantalla ancha: el código va al centro, grande, para que se lea hasta atrás
+    E.codeBig = h('div', { class: 'c-code c-code-big', 'aria-hidden': 'true' });
+    E.joinLine = h('p', { class: 'c-joinline' });
+    E.joinBig = h('div', { class: 'c-joinbig' }, h('div', { class: 'eyebrow' }, 'Entra a la sala'), E.codeBig, E.joinLine);
     E.bar = h('div', { class: 'c-bar glass interactive', role: 'toolbar', 'aria-label': 'Controles del cantor' });
     E.banner = h('div', { class: 'c-banner', hidden: true });
-    E.root = h('div', { class: 'cantor' }, E.side, E.top, E.call, E.bar, E.banner);
+    E.root = h('div', { class: 'cantor' }, E.side, E.top, E.call, E.joinBig, E.bar, E.banner);
     this.app.ui.append(E.root);
     this.renderNet({ ok: this.e.netOk });
   }
@@ -133,9 +137,12 @@ export class CantorView {
       this._codeShown = s.room;
       E.code.replaceChildren(...[...s.room].map((ch) => h('span', { class: 'tile' }, ch)));
       E.code.setAttribute('aria-label', `Código de sala: ${[...s.room].join(' ')}`);
+      E.codeBig.replaceChildren(...[...s.room].map((ch) => h('span', { class: 'tile' }, ch)));
     }
-    const where = CONFIG.dotName ? h('b', {}, CONFIG.dotName) : h('b', {}, 'Lotería en Cadena');
-    E.join.replaceChildren('Abre ', where, ' en tu Polkadot App y entra con este código.');
+    const where = () => h('b', {}, CONFIG.dotName || 'Lotería en Cadena');
+    E.join.replaceChildren('Abre ', where(), ' en tu Polkadot App y entra con este código.');
+    E.joinLine.replaceChildren('Abre ', where(), ' en tu Polkadot App y escribe este código');
+    E.root.classList.toggle('lobby', s.phase === 'L');
     E.name.textContent = s.roomName;
     const pt = PATTERNS[s.pattern];
     E.patternBtn.replaceChildren(
