@@ -31,7 +31,8 @@
     "test": "node --test --test-force-exit test/*.test.mjs",
     "test:scale": "node --test --test-force-exit test/scale.test.mjs",
     "carga": "node scripts/carga.mjs",
-    "icono": "node scripts/icono.mjs"
+    "icono": "node scripts/icono.mjs",
+    "manifest": "node scripts/manifest.mjs"
   },
   "dependencies": {
     "@fontsource/alegreya": "^5.3.0",
