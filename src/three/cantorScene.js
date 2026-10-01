@@ -116,9 +116,11 @@ export class CantorScene {
     this.scene.add(this.decor);
 
     // Mesa con sarape
+    // Pocas repeticiones a lo hondo y filtrado anisótropo: con 12 las rayas lejanas se
+    // veían como líneas de escaneo en el proyector
     const tex = sarapeTexture();
-    tex.repeat.set(6, 3);
-    tex.repeat.set(10, 12);
+    tex.repeat.set(10, 5);
+    tex.anisotropy = 8;
     this.table = new THREE.Mesh(new THREE.PlaneGeometry(90, 120), new THREE.MeshBasicMaterial({ map: tex, color: '#5a4870' }));
     this.table.rotation.x = -Math.PI / 2;
     this.scene.add(this.table);

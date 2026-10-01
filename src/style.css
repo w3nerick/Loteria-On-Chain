@@ -395,7 +395,7 @@ input[type='range'] { width: 100%; accent-color: var(--rosa); }
 .c-pattern .swap { margin-left: auto; opacity: 0.6; }
 
 .c-top { grid-column: 2 / 4; grid-row: 1; display: flex; justify-content: flex-end; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
-.c-top .chip { font-size: 0.9rem; padding: 0.4em 0.9em; }
+.c-top .chip { font-size: 0.9rem; padding: 0.4em 0.9em; background: var(--glass-2); box-shadow: 0 6px 18px rgba(6, 2, 20, 0.45); }
 .c-progress { font-family: var(--ui); }
 .c-progress b { color: var(--cempasuchil); font-weight: 700; }
 .c-commit { font-family: var(--mono); font-size: 0.78rem; }

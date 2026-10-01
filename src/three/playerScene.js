@@ -1,7 +1,7 @@
 // Escena del teléfono: la tabla 4×4 sobre un sarape y los frijolitos que caen.
 import * as THREE from 'three';
 import { makeCard, setCardFace } from './cards3d.js';
-import { canvasTexture, sarapeTexture, blobShadow, blobTexture, Confetti, Tweens, ease } from './fx.js';
+import { canvasTexture, sarapeTexture, tableVignette, blobShadow, blobTexture, Confetti, Tweens, ease } from './fx.js';
 
 const CW = 1;
 const CH = 1.5;
@@ -124,9 +124,14 @@ export class PlayerScene {
     const cloth = sarapeTexture();
     cloth.repeat.set(3, 3);
     cloth.rotation = Math.PI / 2;
-    const table = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshBasicMaterial({ map: cloth, color: '#b7a3c2' }));
+    cloth.anisotropy = 8;
+    const table = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshBasicMaterial({ map: cloth, color: '#9a88ad' }));
     table.position.z = -0.06;
     this.scene.add(table);
+    // La tabla es la protagonista: el sarape se ve junto a ella y se apaga hacia las orillas
+    const lamp = tableVignette(BW + 0.5, BH + 0.4, { soft: 0.9, opacity: 0.78 });
+    lamp.position.z = -0.055;
+    this.scene.add(lamp);
     const shadow = blobShadow(BW * 1.35, BH * 1.2, 0.9);
     shadow.position.set(0.12, -0.18, -0.04);
     this.scene.add(shadow);
