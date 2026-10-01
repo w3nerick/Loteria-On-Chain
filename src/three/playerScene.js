@@ -173,8 +173,9 @@ export class PlayerScene {
     this.time = 0;
   }
 
+  // No se guarda como `el`: PlayerView quita del DOM `scene.el` (la tabla 2D) y aquí es el lienzo compartido
   bindPointer(el) {
-    this.el = el;
+    this.target = el;
     let down = null;
     this._down = (e) => {
       down = { x: e.clientX, y: e.clientY, t: performance.now() };
@@ -192,7 +193,7 @@ export class PlayerScene {
   }
 
   pick(clientX, clientY) {
-    const r = this.el.getBoundingClientRect();
+    const r = this.target.getBoundingClientRect();
     this.pointer.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const hits = this.raycaster.intersectObjects(this.cards, false);
@@ -399,9 +400,9 @@ export class PlayerScene {
   }
 
   dispose() {
-    if (this.el) {
-      this.el.removeEventListener('pointerdown', this._down);
-      this.el.removeEventListener('pointerup', this._up);
+    if (this.target) {
+      this.target.removeEventListener('pointerdown', this._down);
+      this.target.removeEventListener('pointerup', this._up);
     }
   }
 }
