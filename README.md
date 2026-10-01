@@ -87,6 +87,7 @@ completo; el botón **+100 (carga)** del cantor llena la sala de jugadores simul
 | `npm run test:scale` | solo las pruebas de salas grandes |
 | `npm run carga` | mide registro y confirmación con `N` jugadores simulados |
 | `npm run icono` | dibuja `icon.png` (el ícono de la Polkadot App) con el arte de las cartas; necesita Chrome |
+| `npm run manifest` | escribe en DotNS el nombre, la descripción y el ícono que muestra la Polkadot App (firma en el celular) |
 
 ## Estructura
 

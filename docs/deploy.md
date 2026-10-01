@@ -53,10 +53,18 @@ texto `manifest` de `loteria-on-chain.dot`). `npm run deploy` lo intenta escribi
   cartas ([`scripts/icono/`](../scripts/icono/icono.js)); `npm run icono -- --variante rosa` cambia de variante.
   Necesita Chrome; si hay `pngquant` lo comprime (~56 KB).
 - `pad` sube el ícono a Bulletin e imprime `Icon CID: …` **antes** de escribir el manifest.
-- Con `pad login` la escritura falla siempre: en 0.16.7 el paso del manifest firma solo con `--mnemonic` o con la
-  cuenta del worker, nunca con la sesión del celular, y el nombre ya es tuyo. Para escribirlo hace falta firmar
-  como dueño del nombre (pendiente de probar con `dotns text set … --signer qr`).
-- Comprobar: `dotns text view loteria-on-chain manifest --env devnet` (hoy: `(not set)`).
+- Con `pad login` esa escritura falla siempre: en 0.16.7 el paso del manifest firma solo con `--mnemonic` o con la
+  cuenta del worker, nunca con la sesión del celular, y el nombre ya es tuyo.
+- **Solución:** después del deploy, en Terminal.app, `npm run manifest`
+  ([`scripts/manifest.mjs`](../scripts/manifest.mjs)). Usa las mismas piezas de `pad` que firman el contenido con
+  tu celular y escribe solo el manifest: una firma y ~1 min (el 1 oct el saldo libre de la cuenta no cambió).
+  Calcula el CID del ícono desde `icon.png` igual que `pad`; `npm run manifest -- --revisar` muestra la cuenta
+  que firmaría y el valor actual sin escribir.
+- Solo hay que repetirlo si cambian el nombre, la descripción o el ícono: cada `npm run deploy` vuelve a subir el
+  mismo `icon.png` con el mismo CID, y el manifest sigue apuntando a él.
+- `dotns text set … --signer qr` **no sirve** en dotns-cli 0.9.5: los comandos `text` y `account` se quedan con el
+  `--signer` y al subcomando le llega `keystore` (pide «Keystore password»).
+- Comprobar: `dotns text view loteria-on-chain manifest --env devnet`.
 
 ## Comprobar
 
