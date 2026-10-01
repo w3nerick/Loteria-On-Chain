@@ -168,6 +168,7 @@ export class CantorScene {
     this.featured = null;
     this.featPos = new THREE.Vector3();
     this.featScale = 2;
+    this.carouselY = 0;
 
     this.confetti = new Confetti(800);
     this.scene.add(this.confetti.mesh);
@@ -226,6 +227,8 @@ export class CantorScene {
       this.featPos.copy(this.worldAt(0.465, 0.4, featZ));
       this.featScale = (vf.h * 0.5) / 1.5;
     }
+    // El carrusel de la sala de espera va más arriba: abajo se muestra el código grande
+    this.carouselY = P ? this.featPos.y : this.worldAt(0.465, 0.33, featZ).y;
     this.burst.position.copy(this.featPos).add(new THREE.Vector3(0, 0, -0.6));
     this.burst.scale.setScalar((this.featScale * 1.5 * 1.9) / 6);
 
@@ -544,8 +547,10 @@ export class CantorScene {
   _winnerTarget() {
     const z = 1.2;
     const v = this.visAt(z);
-    const pos = this.portrait ? this.worldAt(0.5, 0.56, z) : this.worldAt(0.465, 0.55, z);
-    const scale = Math.min((v.h * (this.portrait ? 0.42 : 0.5)) / WIN_H, (v.w * (this.portrait ? 0.9 : 0.4)) / WIN_W);
+    // En pantalla ancha la tabla baja un poco (arriba va el «¡Lotería!», debajo del papel picado)
+    // sin llegar a la línea donde la corta el piso, cerca de 0.8 de la altura
+    const pos = this.portrait ? this.worldAt(0.5, 0.56, z) : this.worldAt(0.465, 0.575, z);
+    const scale = Math.min((v.h * (this.portrait ? 0.42 : 0.44)) / WIN_H, (v.w * (this.portrait ? 0.9 : 0.4)) / WIN_W);
     return { pos, scale };
   }
 
@@ -636,7 +641,7 @@ export class CantorScene {
       if (m.userData.leaving) return;
       const a = t * 0.32 + (k / n) * Math.PI * 2;
       const R = this.featScale * (this.portrait ? 0.85 : 0.8);
-      m.position.set(this.featPos.x + Math.cos(a) * R, this.featPos.y - this.featScale * 0.1 + Math.sin(a * 2 + k) * 0.08 * this.featScale, this.featPos.z + Math.sin(a) * 0.9 - 0.6);
+      m.position.set(this.featPos.x + Math.cos(a) * R, this.carouselY - this.featScale * 0.1 + Math.sin(a * 2 + k) * 0.08 * this.featScale, this.featPos.z + Math.sin(a) * 0.9 - 0.6);
       m.rotation.set(0, Math.cos(a) * -0.45, Math.sin(t + k) * 0.05);
     });
     // Ganador
