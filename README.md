@@ -189,7 +189,7 @@ Destino: Products Devnet con `pad` → `loteria-on-chain.dot` (detalle, requisit
 
 ```bash
 pad login                      # interactivo: escanea el QR con tu Polkadot App
-npm run deploy                 # build + PAD_ENV=devnet pad dist loteria-on-chain.dot (en Terminal.app)
+npm run deploy                 # build + pad (--no-manifest) + npm run manifest (en Terminal.app)
 ```
 
 La pantalla del cantor muestra `dotName` (`src/config.js`) para que la gente sepa dónde entrar. El contenido
