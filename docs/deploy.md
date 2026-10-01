@@ -30,41 +30,47 @@ dotns lookup name loteria-on-chain --env devnet     # owner 0x000… = libre
 pad login                    # QR con Polkadot App; el handshake puede tardar minutos en el devnet
 pad whoami --env devnet      # ¿quedó la sesión?
 npm ci && npm run check && npm test
-npm run deploy               # = npm run build && PAD_ENV=devnet pad dist loteria-on-chain.dot
+npm run deploy               # = build + PAD_ENV=devnet pad dist loteria-on-chain.dot --no-manifest + npm run manifest
 ```
 
 - `PAD_ENV=devnet` es **obligatorio**: sin él `pad` publica en otra red.
 - En el modo por defecto (solo testnet) un worker local sube a Bulletin, registra el nombre y paga; al final
   **traspasa el nombre** a tu cuenta. El celular no firma nada.
 - Tarda unos 3 minutos. Un `nonce contention (attempt 1/5)` en medio es un reintento automático.
-- Tras `DEPLOYMENT COMPLETE!` sale `Manifest publish failed … setText`: es un problema conocido de `pad`
-  0.16.7 con `pad login`; **la app funciona igual** (solo falta la ficha con ícono). Ver
-  [Ícono y ficha en la Polkadot App](#ícono-y-ficha-en-la-polkadot-app).
+- Tras `DEPLOYMENT COMPLETE!` sigue `npm run manifest`, que pide una firma más en el celular para que
+  `app.loteria-on-chain.dot` apunte a la versión nueva (ver
+  [Ícono y ficha en la Polkadot App](#ícono-y-ficha-en-la-polkadot-app)).
 - La primera vez no hace falta nada más; para una versión nueva repite `npm run deploy` (pedirá una firma en
   el celular porque el nombre ya es tuyo).
 
 ## Ícono y ficha en la Polkadot App
 
-La Polkadot App muestra el nombre, la descripción y el ícono que lee del **manifest** de DotNS (el registro de
-texto `manifest` de `loteria-on-chain.dot`). `npm run deploy` lo intenta escribir porque existe
-[`polkadot-app-deploy.config.mjs`](../polkadot-app-deploy.config.mjs):
+La Polkadot App y Polkadot Desktop muestran el nombre, la descripción y el ícono que leen del **manifest** de
+DotNS (el registro de texto `manifest` de `loteria-on-chain.dot`). Los datos salen de
+[`polkadot-app-deploy.config.mjs`](../polkadot-app-deploy.config.mjs) y los publica `npm run manifest`
+([`scripts/manifest.mjs`](../scripts/manifest.mjs)), que `npm run deploy` llama al final.
 
-- `icon.png` (512×512) se genera con `npm run icono`: dibuja la variante «corazon» con el arte real de las
-  cartas ([`scripts/icono/`](../scripts/icono/icono.js)); `npm run icono -- --variante rosa` cambia de variante.
-  Necesita Chrome; si hay `pngquant` lo comprime (~56 KB).
-- `pad` sube el ícono a Bulletin e imprime `Icon CID: …` **antes** de escribir el manifest.
-- Con `pad login` esa escritura falla siempre: en 0.16.7 el paso del manifest firma solo con `--mnemonic` o con la
-  cuenta del worker, nunca con la sesión del celular, y el nombre ya es tuyo.
-- **Solución:** después del deploy, en Terminal.app, `npm run manifest`
-  ([`scripts/manifest.mjs`](../scripts/manifest.mjs)). Usa las mismas piezas de `pad` que firman el contenido con
-  tu celular y escribe solo el manifest: una firma y ~1 min (el 1 oct el saldo libre de la cuenta no cambió).
-  Calcula el CID del ícono desde `icon.png` igual que `pad`; `npm run manifest -- --revisar` muestra la cuenta
-  que firmaría y el valor actual sin escribir.
-- Solo hay que repetirlo si cambian el nombre, la descripción o el ícono: cada `npm run deploy` vuelve a subir el
-  mismo `icon.png` con el mismo CID, y el manifest sigue apuntando a él.
+- **Con manifest, la app ya no abre el contenido del nombre:** abre el de `app.loteria-on-chain.dot`, y solo si
+  tiene su registro `executable` (así lo resuelve Polkadot Desktop: con manifest y sin `app.`, dice que no
+  encuentra el producto). Por eso el script va en este orden: sube `icon.png` a Bulletin → crea o actualiza
+  `app.` con el mismo contenido que el nombre → `executable` → manifest. Si falla a la mitad, el manifest no
+  se escribe y la app sigue abriendo como antes.
+- `pad` corre con `--no-manifest`: su propio paso falla siempre con `pad login` (0.16.7 firma el manifest solo con
+  `--mnemonic` o con la cuenta del worker, nunca con la sesión del celular, y el nombre ya es tuyo). El script usa
+  las piezas de `pad` que sí firman con tu celular (`getAuthClient` + `resolveSigner` + `DotNS`).
+- Firmas: 4 la primera vez (subnombre, contenido de `app.`, `executable`, manifest); en cada deploy después, 1
+  (el contenido nuevo de `app.`). Los registros que no cambian se saltan.
+- `npm run manifest -- --revisar` muestra el estado y las firmas que haría, sin escribir.
+  `npm run manifest -- --quitar` borra el manifest: la app vuelve a abrir el contenido del nombre.
+- `icon.png` (512×512) se genera con `npm run icono` con el arte real de las cartas
+  ([`scripts/icono/`](../scripts/icono/icono.js)); su CID se calcula igual que `pad` (CIDv1 raw + blake2b-256). Si
+  sigue en Bulletin no se vuelve a subir («Already on chain»: conserva la caducidad de la primera subida); si ya
+  caducó, el siguiente deploy lo sube de nuevo. Republicar la semana del evento (ver [Caducidad](#caducidad))
+  renueva app e ícono.
 - `dotns text set … --signer qr` **no sirve** en dotns-cli 0.9.5: los comandos `text` y `account` se quedan con el
   `--signer` y al subcomando le llega `keystore` (pide «Keystore password»).
-- Comprobar: `dotns text view loteria-on-chain manifest --env devnet`.
+- Comprobar: `dotns text view loteria-on-chain manifest --env devnet` y
+  `dotns content view app.loteria-on-chain --env devnet`.
 
 ## Comprobar
 

@@ -1,6 +1,7 @@
-// Manifest de producto para `pad`: con este archivo, `npm run deploy` también escribe en
-// DotNS el nombre, la descripción y el ícono que muestra la Polkadot App (y registra
-// app.loteria-on-chain.dot). El ícono debe ser PNG o JPEG; se genera con `npm run icono`.
+// Ficha de producto que muestra la Polkadot App: nombre, descripción, ícono y versión.
+// La publica `npm run manifest` (scripts/manifest.mjs), que `npm run deploy` llama al final;
+// `pad` corre con --no-manifest porque su propio paso falla con `pad login` (docs/deploy.md).
+// El ícono debe ser PNG o JPEG; se genera con `npm run icono`.
 export default {
   domain: 'loteria-on-chain.dot',
   displayName: 'Lotería en Cadena',
