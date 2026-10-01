@@ -37,10 +37,26 @@ npm run deploy               # = npm run build && PAD_ENV=devnet pad dist loteri
 - En el modo por defecto (solo testnet) un worker local sube a Bulletin, registra el nombre y paga; al final
   **traspasa el nombre** a tu cuenta. El celular no firma nada.
 - Tarda unos 3 minutos. Un `nonce contention (attempt 1/5)` en medio es un reintento automático.
-- Tras `DEPLOYMENT COMPLETE!` puede salir `Manifest publish failed … setText`: es un problema conocido de
-  `pad` 0.16.7 con `pad login`; **la app funciona igual** (solo falta la ficha en la galería).
+- Tras `DEPLOYMENT COMPLETE!` sale `Manifest publish failed … setText`: es un problema conocido de `pad`
+  0.16.7 con `pad login`; **la app funciona igual** (solo falta la ficha con ícono). Ver
+  [Ícono y ficha en la Polkadot App](#ícono-y-ficha-en-la-polkadot-app).
 - La primera vez no hace falta nada más; para una versión nueva repite `npm run deploy` (pedirá una firma en
   el celular porque el nombre ya es tuyo).
+
+## Ícono y ficha en la Polkadot App
+
+La Polkadot App muestra el nombre, la descripción y el ícono que lee del **manifest** de DotNS (el registro de
+texto `manifest` de `loteria-on-chain.dot`). `npm run deploy` lo intenta escribir porque existe
+[`polkadot-app-deploy.config.mjs`](../polkadot-app-deploy.config.mjs):
+
+- `icon.png` (512×512) se genera con `npm run icono`: dibuja la variante «corazon» con el arte real de las
+  cartas ([`scripts/icono/`](../scripts/icono/icono.js)); `npm run icono -- --variante rosa` cambia de variante.
+  Necesita Chrome; si hay `pngquant` lo comprime (~56 KB).
+- `pad` sube el ícono a Bulletin e imprime `Icon CID: …` **antes** de escribir el manifest.
+- Con `pad login` la escritura falla siempre: en 0.16.7 el paso del manifest firma solo con `--mnemonic` o con la
+  cuenta del worker, nunca con la sesión del celular, y el nombre ya es tuyo. Para escribirlo hace falta firmar
+  como dueño del nombre (pendiente de probar con `dotns text set … --signer qr`).
+- Comprobar: `dotns text view loteria-on-chain manifest --env devnet` (hoy: `(not set)`).
 
 ## Comprobar
 

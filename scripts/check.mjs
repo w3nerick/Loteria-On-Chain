@@ -231,6 +231,33 @@ await check('Configuración', async ({ fail }) => {
   if (!['c', 'e', 'm', 'f'].includes(CONFIG.defaultPattern)) fail(`CONFIG.defaultPattern inválido: «${CONFIG.defaultPattern}» (c, e, m o f)`);
 });
 
+// --- 9. manifest de la Polkadot App (nombre, descripción e ícono) --------------------------------------
+await check('Manifest e ícono', async ({ fail, note }) => {
+  const file = 'polkadot-app-deploy.config.mjs';
+  if (!exists(file)) return fail(`falta ${file} (sin él la Polkadot App no muestra ícono ni nombre)`);
+  const { default: m } = await import(`${pathToFileURL(path.join(ROOT, file)).href}?t=${Date.now()}`);
+  const pkg = JSON.parse(read('package.json'));
+  const deployTo = pkg.scripts?.deploy?.match(/\s([a-z0-9-]+\.dot)\b/)?.[1];
+  if (deployTo && m.domain !== deployTo) fail(`${file}: domain «${m.domain}» no coincide con el de npm run deploy («${deployTo}»)`);
+  if (!m.displayName?.trim()) fail(`${file}: falta displayName`);
+  if (!m.description?.trim()) fail(`${file}: falta description`);
+  if (!['png', 'jpeg'].includes(m.icon?.format)) fail(`${file}: icon.format debe ser png o jpeg`);
+  const app = m.executables?.find((e) => e.kind === 'app');
+  if (!app || app.path !== './dist') fail(`${file}: falta el ejecutable app con path ./dist`);
+  else if (app.appVersion?.join('.') !== pkg.version) fail(`${file}: appVersion ${app.appVersion?.join('.')} ≠ versión de package.json ${pkg.version}`);
+  const icon = m.icon?.path?.replace(/^\.\//, '');
+  if (!icon || !exists(icon)) return fail(`falta el ícono ${m.icon?.path} (npm run icono)`);
+  const buf = fs.readFileSync(path.join(ROOT, icon));
+  if (m.icon.format === 'png') {
+    if (buf.readUInt32BE(0) !== 0x89504e47) return fail(`${icon} no es un PNG`);
+    const w = buf.readUInt32BE(16);
+    const h = buf.readUInt32BE(20);
+    if (w !== h || w < 256) fail(`${icon}: ${w}×${h}; debe ser cuadrado y de 256 px o más (se usa 512×512)`);
+  }
+  if (buf.length > 200 * 1024) fail(`${icon}: ${Math.round(buf.length / 1024)} KB; comprímelo (npm run icono usa pngquant)`);
+  note(`${m.displayName} · ${icon} ${Math.round(buf.length / 1024)} KB`);
+});
+
 // --- informe ------------------------------------------------------------------------------------------------
 let bad = 0;
 const tty = process.stdout.isTTY;

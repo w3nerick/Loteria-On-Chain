@@ -86,6 +86,7 @@ completo; el botón **+100 (carga)** del cantor llena la sala de jugadores simul
 | `npm test` | pruebas del protocolo, el juego y las salas grandes (~40 s) |
 | `npm run test:scale` | solo las pruebas de salas grandes |
 | `npm run carga` | mide registro y confirmación con `N` jugadores simulados |
+| `npm run icono` | dibuja `icon.png` (el ícono de la Polkadot App) con el arte de las cartas; necesita Chrome |
 
 ## Estructura
 
@@ -122,7 +123,9 @@ completo; el botón **+100 (carga)** del cantor llena la sala de jugadores simul
 - imports relativos de `src/`, `test/` y `scripts/`;
 - la baraja: 54 cartas, sin ids, números ni nombres repetidos, todas con verso e ilustración;
 - **privacidad:** rutas locales, correos, tokens y llaves privadas en cualquier archivo;
-- nombres de archivo sin espacios ni caracteres raros, y `CONFIG.dotName` con formato válido.
+- nombres de archivo sin espacios ni caracteres raros, y `CONFIG.dotName` con formato válido;
+- el manifest de la Polkadot App (`polkadot-app-deploy.config.mjs`): mismo dominio que `npm run deploy`, versión de
+  `package.json` e `icon.png` cuadrado, de 256 px o más y de menos de 200 KB.
 
 `test/check.test.mjs` comprueba que el verificador **sí falla** con cada caso malo. El CI
 ([`ci.yml`](.github/workflows/ci.yml)) corre `check`, `test` y `build` en cada push y pull request.
