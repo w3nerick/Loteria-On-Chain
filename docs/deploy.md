@@ -85,17 +85,20 @@ dotns content view loteria-on-chain --env devnet     # debe mostrar el CID nuevo
 
 ## Compatibilidad con el Host
 
-El SDK que lleva la app y la Polkadot App tienen que hablar el mismo **códec** del protocolo. Si no, el SDK
+El SDK que lleva la app y la Polkadot App tienen que hablar el mismo **códec** del protocolo (TrUAPI). Si no, el SDK
 dice «connected» pero el Host no contesta nada y la app se queda en *«Conectando con tu Polkadot App»*.
-Medido en un iPhone (Polkadot App iOS) y en Polkadot Desktop 0.1.3: hablan el **códec 1**.
+Desde el update del devnet del 22–23 oct 2026, Android e iOS (`devnet/2026-10-22.1`), Polkadot Desktop 0.1.4 y
+dev-dot.li hablan **TrUAPI 0.25 (códec 3)**; las apps con el códec anterior ya no conectan.
 
 | Paquete | Versión | Nota |
 |---|---|---|
-| `@parity/product-sdk-host` | `0.19.1` | fija el `truapi` 0.13.1 (códec 1) |
-| `@parity/product-sdk-statement-store` | `0.6.9` | la que depende justo de host 0.19.1 |
+| `@parity/product-sdk-host` | `0.28.0` | fija el `truapi` 0.25.0 (códec 3), la de `@parity/product-sdk` 0.39.0 |
+| `@parity/product-sdk-signer` | `0.17.3` | firmantes `TxCreator` de polkadot-api 3 |
+| `@parity/product-sdk-statement-store` | `0.7.3` | la que depende justo de host 0.28.0 |
+| `polkadot-api` | `3.2.1` | `createSubmitAndWatch` (eventos `created` → `inBestBlock` → `finalized`) |
 
-- Se fijan **exactas** (sin `^`) y `npm run check` falla si no lo están o si el códec instalado no es el 1.
-- La versión 0.23 del host (códec 3) **no** funciona con la Polkadot App actual.
+- Se fijan **exactas** (sin `^`) y `npm run check` falla si no lo están o si el códec instalado no es el 3.
+- El SDK 0.40 en adelante (TrUAPI 0.26) **no** funciona con los Hosts del devnet de octubre 2026.
 - Subir de versión solo después de medir el códec del Host en un teléfono real. La pantalla
   `#diagnostico` de la app muestra la versión del SDK, el códec y qué paso del arranque falló.
 - Tras conectar, la app pide el permiso de publicación y hace un primer envío mínimo **en segundo plano**;

@@ -8,7 +8,7 @@
 //
 // Fuera del contenedor (navegador) se usa una cuenta de desarrollo: sirve para
 // ensayar la firma, pero nada se sella en la cadena.
-// Mismo camino probado en Proof of Cam (iPhone) y testalk (Desktop 0.1.3).
+// SDK 0.39 (TrUAPI 0.25): los firmantes son TxCreator de polkadot-api 3.
 import { createClient, AccountId } from 'polkadot-api';
 import { getWsProvider } from 'polkadot-api/ws';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';

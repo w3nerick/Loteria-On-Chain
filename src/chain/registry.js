@@ -20,7 +20,7 @@ function address() {
   return REGISTRY_ADDRESS;
 }
 
-// En polkadot-api 2.2 los Vec<u8> llegan como Uint8Array y los [u8; N] como texto hex
+// En polkadot-api 3 los Vec<u8> llegan como Uint8Array y los [u8; N] como texto hex
 const toHex = (d) => (typeof d === 'string' ? d : Binary.toHex(d));
 
 async function dryRun(client, origin, data) {
@@ -114,10 +114,11 @@ export async function simulate(client, origin, data) {
 
 function submit(tx, signer, onSigned) {
   return new Promise((resolve, reject) => {
-    const sub = tx.signSubmitAndWatch(signer).subscribe({
+    // polkadot-api 3: el firmante es un TxCreator y los eventos son created → broadcasted → inBestBlock → finalized
+    const sub = tx.createSubmitAndWatch(signer).subscribe({
       next: (e) => {
-        if (e.type === 'signed') onSigned?.();
-        if (e.type === 'txBestBlocksState' && e.found && e.ok === false) {
+        if (e.type === 'created') onSigned?.();
+        if (e.type === 'inBestBlock' && e.ok === false) {
           sub.unsubscribe();
           reject(new Error(describeDispatch(e.dispatchError)));
         }
