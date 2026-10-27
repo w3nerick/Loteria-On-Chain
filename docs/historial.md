@@ -35,7 +35,7 @@ identidad `.dot` del cantor (el Host muestra un cuadro para compartirla). Los ju
 
 Para fondear antes del evento: pantalla del cantor → «Cuenta que paga» (o `#diagnostico` → «Cuenta de la app»)
 muestra la dirección con un botón Copiar y su saldo de PAS y PGAS. La cuenta cambia con el dominio: la de
-`loteria-on-chain.dot` no es la de un nombre de prueba.
+`loteria-mexicana-onchain.dot` no es la de un nombre de prueba.
 
 ## Qué se guarda
 

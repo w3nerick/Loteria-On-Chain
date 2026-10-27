@@ -184,12 +184,12 @@ contrato en [`docs/historial.md`](docs/historial.md).
 
 ## Publicar
 
-Destino: Products Devnet con `pad` → `loteria-on-chain.dot` (detalle, requisitos y advertencias en
+Destino: Products Devnet con `pad` 0.22.1 → `loteria-mexicana-onchain.dot` (detalle, requisitos y advertencias en
 [`docs/deploy.md`](docs/deploy.md)):
 
 ```bash
 pad login                      # interactivo: escanea el QR con tu Polkadot App
-npm run deploy                 # build + pad (--no-manifest) + npm run manifest (en Terminal.app)
+npm run deploy                 # build + pad con ficha (manifest + app.) (en Terminal.app)
 ```
 
 La pantalla del cantor muestra `dotName` (`src/config.js`) para que la gente sepa dónde entrar. El contenido
