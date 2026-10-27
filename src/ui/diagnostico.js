@@ -3,6 +3,7 @@
 // mirar desde el celular cuando "no entra" y poder mandar el texto sin adivinar.
 import { h, toast, icon, copyText } from './dom.js';
 import { diag, onDiag } from '../net/diag.js';
+import { showAppAccount } from './cuentaApp.js';
 
 const BUILD = typeof __BUILD__ !== 'undefined' ? __BUILD__ : {};
 
@@ -109,6 +110,7 @@ export function showDiagnostics(app) {
       { class: 'row-end' },
       h('button', { class: 'btn btn-ghost', onclick: () => app.showHome() }, '‹ Volver'),
       h('button', { class: 'btn btn-ghost', onclick: () => toast(copyText(report(app, extra)) ? 'Diagnóstico copiado' : 'No se pudo copiar', 'info') }, 'Copiar'),
+      ...(app.mode === 'host' ? [h('button', { class: 'btn btn-ghost', onclick: () => showAppAccount() }, 'Cuenta de la app')] : []),
       testBtn,
     ),
   );
