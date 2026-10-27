@@ -184,7 +184,7 @@ contrato en [`docs/historial.md`](docs/historial.md).
 
 ## Publicar
 
-Destino: Products Devnet con `pad` 0.22.1 → `loteria-mexicana-onchain.dot` (detalle, requisitos y advertencias en
+Destino: Products Devnet con `pad` 0.22.1 → `loteria-mexicana-on-chain.dot` (detalle, requisitos y advertencias en
 [`docs/deploy.md`](docs/deploy.md)):
 
 ```bash
