@@ -1,7 +1,7 @@
 // Ajustes del evento. Cambia `dotName` después de publicar con `pg deploy`
 // para que la pantalla del cantor diga exactamente dónde entrar.
 export const CONFIG = {
-  dotName: 'loteria-mexicana-onchain.dot', // dónde entra la gente; lo muestra la pantalla del cantor
+  dotName: 'loteria-mexicana-on-chain.dot', // dónde entra la gente; lo muestra la pantalla del cantor
   defaultRoomName: 'Noche de Lotería',
   defaultPattern: 'f', // figura para ganar: 'f' tabla llena · 'c' chorro · 'e' esquinas · 'm' centrito
   defaultSpeed: 8, // segundos entre cartas

@@ -1,7 +1,7 @@
 // Cuentas para firmar dentro de la Polkadot App / Desktop.
 //
 // - Cuenta de la app (`SignerManager`): la que el Host deriva para
-//   loteria-mexicana-onchain.dot. Con ella cada jugador firma su resultado: no gasta
+//   loteria-mexicana-on-chain.dot. Con ella cada jugador firma su resultado: no gasta
 //   nada y no hace falta saldo.
 // - Identidad .dot: la dueña del username en People chain. El cantor puede
 //   pagar el sello con ella si la cuenta de la app no tiene saldo.
