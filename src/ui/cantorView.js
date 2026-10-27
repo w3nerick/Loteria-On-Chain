@@ -1,5 +1,5 @@
 // Pantalla grande del cantor: HUD sobre la escena 3D.
-import { h, toast, modal, patternGlyph, tablaCanvas, icon } from './dom.js';
+import { h, toast, modal, patternGlyph, tablaCanvas, icon, copyText } from './dom.js';
 import { sound, keepAwake } from './audio.js';
 import { CantorScene } from '../three/cantorScene.js';
 import { DECK } from '../cards/deck.js';
@@ -469,6 +469,12 @@ export class CantorView {
       parts.push(this.btn([icon('chain', 18), sealed ? `Agregar ${pending} más` : 'Guardar en la cadena'], () => this.seal(), 'gold'));
     }
     if (this._sealError && !this._sealing) parts.push(h('span', { class: 'warn' }, this._sealError));
+    if (this._sealAddr && !this._sealing) {
+      parts.push(
+        h('span', { class: 'meta num' }, this._sealAddr),
+        this.btn([icon('copy', 18), 'Copiar dirección'], () => toast(copyText(this._sealAddr) ? 'Dirección copiada' : 'No se pudo copiar: selecciónala a mano', 'good', 3000)),
+      );
+    }
     E.chain.replaceChildren(...parts);
   }
 
@@ -476,6 +482,7 @@ export class CantorView {
     if (this._sealing) return;
     this._sealing = true;
     this._sealError = null;
+    this._sealAddr = null;
     this._sealStep = 'Preparando…';
     this.renderChainPanel();
     try {
@@ -487,6 +494,7 @@ export class CantorView {
       toast(r.already ? 'Esta ronda ya estaba guardada en la cadena' : `Ronda guardada en el bloque #${r.block.toLocaleString('es-MX')}`, 'good', 5000);
     } catch (e) {
       this._sealError = String(e?.message || e);
+      this._sealAddr = e?.appAddress || null;
       toast('No se pudo guardar en la cadena', 'bad', 4000);
     } finally {
       this._sealing = false;

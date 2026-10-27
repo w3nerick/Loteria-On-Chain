@@ -2,20 +2,22 @@
 //
 // 1. Lee si la ronda ya está en la cadena (una recarga o un intento que sí
 //    entró): lo que ya está no se vuelve a mandar.
-// 2. Elige quién paga: la cuenta de la app si tiene saldo, si no la identidad.
-//    Si la ronda ya existe, paga la misma cuenta que la guardó (el contrato
-//    solo le deja agregar jugadores a ella).
+// 2. Pide el permiso de gas (PGAS): el Host paga las comisiones de la cuenta de
+//    la app, como en polka-man.dot. El depósito de almacenamiento sale de PAS.
+//    Paga la cuenta de la app si tiene PAS para el depósito; si no, la identidad
+//    (solo entonces se pide). Si la ronda ya existe, paga la misma cuenta que la
+//    guardó (el contrato solo le deja agregar jugadores a ella).
 // 3. Registra la cuenta en pallet-revive si hace falta (una sola vez).
 // 4. `sellar` con la cabecera y la primera parte de jugadores; `agregar` con el
 //    resto. Cada parte se simula antes de firmar; si no cabe, se parte a la mitad.
 import { encodeHeader, splitPlayers, decodePlayers, KIND } from './record.js';
 import * as reg from './registry.js';
 import { getClient } from './client.js';
-import { payers, askChainSubmit, describeError } from './wallet.js';
+import { appPayer, identityPayer, requestGas, askChainSubmit, describeError, walletInfo } from './wallet.js';
 import { FAUCET_URL } from './network.js';
 
-const MIN_BALANCE = 10n ** 9n; // 0.1 PAS: menos que esto no alcanza ni para registrar la cuenta
-const PREFERRED = 10n ** 10n; // con 1 PAS se guardan varias rondas grandes
+// 0.1 PAS: el depósito de una ronda va de ~0.04 PAS (sin jugadores) a ~0.5 PAS (50 firmados)
+const MIN_BALANCE = 10n ** 9n;
 
 // Llave de un registro: si ya está en la cadena igual, no se vuelve a mandar
 export const recordKey = (p) => `${p.kind}:${p.kind === KIND.HIDDEN ? p.h : p.code}:${p.mask ?? '-'}`;
@@ -25,25 +27,32 @@ export function pendingPlayers(record, sealedKeys) {
   return record.players.filter((p) => !done.has(recordKey(p)));
 }
 
-async function choosePayer(client, onChain) {
-  const list = await payers();
-  for (const p of list) {
-    p.balance = await reg.freeBalance(client, p.address);
-    p.h160 = await reg.h160Of(client, p.address);
-  }
+async function withBalance(client, p) {
+  p.balance = await reg.freeBalance(client, p.address);
+  p.h160 = await reg.h160Of(client, p.address);
+  return p;
+}
+
+// Paga la cuenta de la app si tiene PAS para el depósito (la comisión va con PGAS si el Host la da);
+// si no, la identidad .dot. Si la ronda ya existe, paga la misma cuenta que la guardó.
+async function choosePayer(client, onChain, onStep) {
+  const app = await withBalance(client, await appPayer());
+  if (onChain && app.h160 === onChain.cantor.toLowerCase()) return app;
+  if (!onChain && app.balance >= MIN_BALANCE) return app;
+  onStep('Pidiendo tu identidad .dot (aprueba el cuadro si aparece)…');
+  const id = await identityPayer();
+  if (id) await withBalance(client, id);
   if (onChain) {
-    const same = list.find((p) => p.h160 === onChain.cantor.toLowerCase());
-    if (!same) throw new Error('Esta ronda la guardó otra cuenta: solo ella puede agregarle jugadores.');
-    return same;
+    if (id && id.h160 === onChain.cantor.toLowerCase()) return id;
+    throw new Error('Esta ronda la guardó otra cuenta: solo ella puede agregarle jugadores.');
   }
-  const pick = list.find((p) => p.balance >= PREFERRED) || [...list].sort((a, b) => (b.balance > a.balance ? 1 : -1))[0];
-  if (!pick || pick.balance < MIN_BALANCE) {
-    const who = list.map((p) => `${p.kind === 'app' ? 'cuenta de la app' : 'tu identidad'} ${p.address} (${reg.pas(p.balance)})`).join(' · ');
-    const err = new Error(`Sin saldo para guardar en la cadena. Pide PAS en ${FAUCET_URL} para: ${who}`);
-    err.noFunds = true;
-    throw err;
-  }
-  return pick;
+  if (id && id.balance >= MIN_BALANCE) return id;
+  const who = [app, id].filter(Boolean).map((p) => `${p.kind === 'app' ? 'cuenta de la app' : 'tu identidad'} (${reg.pas(p.balance)})`).join(' · ');
+  const note = id ? '' : ` No se usó tu identidad .dot: ${walletInfo().identityNote || 'no disponible'}.`;
+  const err = new Error(`Sin PAS para el depósito de la ronda: ${who}. Manda unos PAS a la cuenta de la app (botón Copiar) o pídelos en ${FAUCET_URL} (Asset Hub).${note}`);
+  err.noFunds = true;
+  err.appAddress = app.address;
+  throw err;
 }
 
 export async function sealRound(engine, onStep = () => {}) {
@@ -60,8 +69,10 @@ export async function sealRound(engine, onStep = () => {}) {
     return { already: true, block: Number(onChain.bloque) };
   }
 
+  onStep('Pidiendo el permiso de gas (PGAS)…');
+  await requestGas();
   onStep('Abriendo tu cuenta…');
-  const payer = await choosePayer(client, onChain);
+  const payer = await choosePayer(client, onChain, onStep);
   onStep('Pidiendo permiso para enviar transacciones…');
   await askChainSubmit();
   if (!(await reg.isMapped(client, payer.address))) {

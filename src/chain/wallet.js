@@ -135,13 +135,29 @@ export async function loadIdentity() {
   }
 }
 
-// Quién puede pagar una transacción: la cuenta de la app y, si hay, la identidad
-export async function payers() {
+// La cuenta de la app paga primero (como polka-man.dot): no pide tu identidad
+export async function appPayer() {
   await connectWallet();
-  const list = [{ kind: 'app', address: appKey.address, signer: manager.getSigner() }];
+  return { kind: 'app', address: appKey.address, signer: manager.getSigner() };
+}
+
+// La identidad solo se pide si la cuenta de la app no alcanza (el Host muestra un cuadro)
+export async function identityPayer() {
   const id = await loadIdentity();
-  if (id) list.push({ kind: 'identity', address: id.address, signer: id.signer });
-  return list;
+  return id ? { kind: 'identity', address: id.address, signer: id.signer } : null;
+}
+
+// Permiso de gas (PGAS) para la cuenta de la app: el Host paga las comisiones con PGAS y la recarga.
+// El depósito de almacenamiento del contrato sigue saliendo de PAS. Nunca lanza.
+export async function requestGas() {
+  const host = await hostSdk();
+  if (!host) return 'fuera de la Polkadot App';
+  try {
+    const r = await withTimeout(host.requestResourceAllocation([{ tag: 'SmartContractAllowance', value: { tag: 'Index', value: 0 } }]), SUBMIT_MS, 'permiso de gas');
+    return r?.ok ? r.value?.[0] ?? 'sin respuesta' : describeError(r?.error);
+  } catch (e) {
+    return describeError(e);
+  }
 }
 
 // Permiso para mandar transacciones: sin él la hoja de firma no aparece
