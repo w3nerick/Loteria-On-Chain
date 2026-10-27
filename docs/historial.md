@@ -27,7 +27,15 @@ verificar desde la pantalla **Historial** de la app.
    con unos 50 jugadores por transacción) desde Polkadot Desktop. Lo que llegue después se agrega con
    **Agregar N más**. Si el cantor empieza otra ronda sin guardar, la app le avisa.
 
-Quién paga: la cuenta de la app si tiene saldo; si no, la identidad `.dot` del cantor. Los jugadores nunca pagan.
+Quién paga: la cuenta de la app del cantor, como en polka-man.dot. Al guardar, la app pide el permiso de gas
+(`SmartContractAllowance`) y el Host paga las **comisiones** con PGAS. El **depósito de almacenamiento** de la
+ronda sí sale de PAS (~0.037 PAS una ronda sin jugadores, hasta ~0.5 PAS con 50 firmados; medido el 27 oct 2026:
+una cuenta sin PAS falla con `StorageDepositNotEnoughFunds`). Si la cuenta de la app no tiene PAS, se pide la
+identidad `.dot` del cantor (el Host muestra un cuadro para compartirla). Los jugadores nunca pagan.
+
+Para fondear antes del evento: pantalla del cantor → «Cuenta que paga» (o `#diagnostico` → «Cuenta de la app»)
+muestra la dirección con un botón Copiar y su saldo de PAS y PGAS. La cuenta cambia con el dominio: la de
+`loteria-on-chain.dot` no es la de un nombre de prueba.
 
 ## Qué se guarda
 

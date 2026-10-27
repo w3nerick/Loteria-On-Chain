@@ -11,6 +11,7 @@ import { reducedMotion } from './app.js';
 import { whyLocal } from './diagnostico.js';
 import { sealRound, pendingPlayers } from '../chain/seal.js';
 import { registryDeployed } from '../chain/registry.js';
+import { showAppAccount } from './cuentaApp.js';
 
 const ORDER = ['c', 'e', 'm', 'f'];
 const BEAN_COLORS = ['#e4007c', '#10b5ae', '#ffb000', '#7b3fe4', '#2fbf5b', '#2d7ff9', '#ff4d5e'];
@@ -468,6 +469,7 @@ export class CantorView {
       if (!sealed) parts.push(h('span', { class: 'meta' }, 'Espera unos segundos a que firmen; lo que llegue después se puede agregar.'));
       parts.push(this.btn([icon('chain', 18), sealed ? `Agregar ${pending} más` : 'Guardar en la cadena'], () => this.seal(), 'gold'));
     }
+    if (!this.demo && registryDeployed() && !this._sealing) parts.push(this.btn([icon('copy', 18), 'Cuenta que paga'], () => showAppAccount()));
     if (this._sealError && !this._sealing) parts.push(h('span', { class: 'warn' }, this._sealError));
     if (this._sealAddr && !this._sealing) {
       parts.push(

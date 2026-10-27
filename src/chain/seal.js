@@ -14,7 +14,7 @@ import { encodeHeader, splitPlayers, decodePlayers, KIND } from './record.js';
 import * as reg from './registry.js';
 import { getClient } from './client.js';
 import { appPayer, identityPayer, requestGas, askChainSubmit, describeError, walletInfo } from './wallet.js';
-import { FAUCET_URL } from './network.js';
+import { FAUCET_URL, ETH_RPC_URL, PGAS_PRECOMPILE } from './network.js';
 
 // 0.1 PAS: el depósito de una ronda va de ~0.04 PAS (sin jugadores) a ~0.5 PAS (50 firmados)
 const MIN_BALANCE = 10n ** 9n;
@@ -53,6 +53,21 @@ async function choosePayer(client, onChain, onStep) {
   err.noFunds = true;
   err.appAddress = app.address;
   throw err;
+}
+
+// La cuenta de la app que paga el historial, con su saldo: para fondearla antes de que falte.
+// Conecta la cuenta si hace falta (llamar desde un toque).
+export async function appAccountInfo() {
+  const app = await appPayer();
+  const client = await getClient();
+  const [pas, h160] = await Promise.all([reg.freeBalance(client, app.address), reg.h160Of(client, app.address)]);
+  let pgas = null;
+  try {
+    const { createPublicClient, http, erc20Abi } = await import('viem');
+    const eth = createPublicClient({ transport: http(ETH_RPC_URL, { timeout: 10000, retryCount: 1 }) });
+    pgas = await eth.readContract({ address: PGAS_PRECOMPILE, abi: erc20Abi, functionName: 'balanceOf', args: [h160] });
+  } catch {}
+  return { address: app.address, pas, pgas };
 }
 
 export async function sealRound(engine, onStep = () => {}) {

@@ -13,3 +13,8 @@ export const PEOPLE_WS = ['wss://people-paseo.gatotech.network', 'wss://rpc.inte
 export const REGISTRY_ADDRESS = '0x1ffee4d43c109a5c91c1c1296b93cf6da4c744ce';
 
 export const FAUCET_URL = 'https://faucet.polkadot.io';
+
+// PGAS (gas que da el Host a la cuenta de la app): asset 2,000,000,000 de Asset Hub, leído por su
+// precompile ERC-20 en el ETH-RPC, igual que polka-man.dot
+export const ETH_RPC_URL = 'https://eth-rpc-testnet.polkadot.io';
+export const PGAS_PRECOMPILE = `0x${(2_000_000_000).toString(16).padStart(8, '0')}${'0'.repeat(24)}01200000`;
