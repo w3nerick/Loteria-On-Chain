@@ -6,11 +6,16 @@
 // celular tarda ~10 s; en Polkadot Desktop además muestra un cuadro de aprobación
 // y consulta al celular emparejado. Por eso se «calienta» en segundo plano al
 // abrir la app (sin trabar la pantalla) y el primer envío real tiene más margen.
-import { StatementStoreClient } from '@parity/product-sdk-statement-store';
+//
+// Si el Host publica pero no entrega nada (Polkadot Desktop 0.1.4, oct 2026), se lee también
+// de un nodo público de People (peopleFeed.js). Los mensajes de las dos vías se deduplican.
+import { StatementStoreClient, decodeData } from '@parity/product-sdk-statement-store';
 import { requestResourceAllocation } from '@parity/product-sdk-host';
 import { APP_NAME } from './protocol.js';
-import { diag, step } from './diag.js';
+import { diag, noteDiag, step } from './diag.js';
 import { withTimeout } from './timeout.js';
+import { openPeopleFeed } from './peopleFeed.js';
+import { PEOPLE_WS } from '../chain/network.js';
 
 export class HostTransport {
   // `sdkTransport` solo se usa en pruebas (transporte en memoria del SDK)
@@ -20,6 +25,9 @@ export class HostTransport {
     firstPublishTimeoutMs = 90000,
     warmUpTimeoutMs = 120000,
     requestAllocation = requestResourceAllocation,
+    // Sin nada del Host este tiempo después del primer envío, se abre el respaldo de lectura
+    feedAfterMs = 12000,
+    openFeed = null,
   } = {}) {
     this.kind = 'host';
     this.publishTimeoutMs = publishTimeoutMs;
@@ -35,6 +43,12 @@ export class HostTransport {
     this.everPublished = false;
     this._statusSubs = new Set();
     this._warm = null;
+    this.feedAfterMs = feedAfterMs;
+    this.openFeed = openFeed ?? (sdkTransport ? null : defaultFeed);
+    this.hostDelivered = 0;
+    this._feedTimer = null;
+    this._closeFeed = null;
+    this._seen = new Map(); // firmante|canal → expiry más nuevo entregado
   }
 
   onStatus(cb) {
@@ -68,16 +82,62 @@ export class HostTransport {
       throw new Error(conn.error);
     }
     this.client.subscribe((st) => {
-      const meta = { signer: st.signerHex, topics: st.topics };
-      for (const cb of this.subs) {
-        try {
-          cb(st.data, meta);
-        } catch (e) {
-          console.error(e);
-        }
-      }
+      this.hostDelivered += 1;
+      this._deliver(st.data, st.signerHex, st.topics, st.channelHex, st.expiry);
     });
     this.warmUp(); // en segundo plano: no se espera
+  }
+
+  // Misma regla que el SDK: por firmante y canal solo pasa lo más nuevo (llega por el Host,
+  // por el respaldo o por los dos)
+  _deliver(data, signer, topics, channel, expiry) {
+    if (expiry !== undefined) {
+      const key = `${signer ?? ''}|${channel ?? JSON.stringify(data)}`;
+      const prev = this._seen.get(key);
+      if (prev !== undefined && expiry <= prev) return;
+      this._seen.set(key, expiry);
+      if (this._seen.size > 4000) this._pruneSeen();
+    }
+    const meta = { signer, topics };
+    for (const cb of this.subs) {
+      try {
+        cb(data, meta);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
+
+  _pruneSeen() {
+    const now = BigInt(Math.floor(Date.now() / 1000));
+    for (const [k, exp] of this._seen) if (exp >> 32n < now) this._seen.delete(k);
+  }
+
+  // Tras el primer envío que sí entró: si el Host no entregó nada a tiempo, se abre el respaldo
+  _armFeed() {
+    if (this._feedTimer || this._closeFeed || !this.openFeed) return;
+    this._feedTimer = setTimeout(() => {
+      if (this.hostDelivered > 0 || this._closeFeed) return;
+      noteDiag({ feed: { state: 'abriendo', why: `el Host no entregó mensajes en ${Math.round(this.feedAfterMs / 1000)} s` } });
+      Promise.resolve(
+        this.openFeed({
+          onStatement: (st) => {
+            let data;
+            try {
+              data = decodeData(st.data);
+            } catch {
+              return;
+            }
+            this._deliver(data, st.signerHex, st.topics, st.channelHex, st.expiry);
+          },
+          onStatus: (s) => noteDiag({ feed: { ...diag.feed, ...s } }),
+        }),
+      )
+        .then((close) => {
+          this._closeFeed = close;
+        })
+        .catch((e) => noteDiag({ feed: { state: 'error', error: String(e?.message || e) } }));
+    }, this.feedAfterMs);
   }
 
   // Pide el permiso y hace un primer envío mínimo para que el Host deje lista la cuenta de
@@ -123,6 +183,7 @@ export class HostTransport {
     if (r.ok) {
       this.everPublished = true;
       this._setStatus('ready');
+      this._armFeed();
     }
   }
 
@@ -141,6 +202,7 @@ export class HostTransport {
         this.lastError = null;
         this.everPublished = true;
         this._setStatus('ready');
+        this._armFeed();
         return { ok: true };
       }
       this.lastError = r.error?.message || 'El Statement Store rechazó el mensaje';
@@ -159,8 +221,19 @@ export class HostTransport {
   destroy() {
     this.subs.clear();
     this._statusSubs.clear();
+    clearTimeout(this._feedTimer);
+    try {
+      this._closeFeed?.();
+    } catch {}
     try {
       this.client?.destroy();
     } catch {}
   }
+}
+
+// Respaldo real: pide el permiso de red para los nodos de People y abre la suscripción
+async function defaultFeed({ onStatement, onStatus }) {
+  const { askRemote } = await import('../chain/client.js');
+  await askRemote();
+  return openPeopleFeed({ appName: APP_NAME, urls: PEOPLE_WS, onStatement, onStatus });
 }

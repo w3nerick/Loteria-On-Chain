@@ -7,6 +7,7 @@ export const diag = {
   mode: 'local', // 'host' | 'local'
   reason: null, // por qué no hay Host (texto para el jugador)
   allowance: null, // 'Allocated' | 'Rejected' | 'NotAvailable' | 'Sin respuesta' | 'Error'
+  feed: null, // respaldo de lectura por RPC público: { state, url, why, error }
   listeners: new Set(),
 };
 
@@ -29,6 +30,13 @@ export function resetDiag() {
   diag.mode = 'local';
   diag.reason = null;
   diag.allowance = null;
+  diag.feed = null;
+  notify();
+}
+
+// Cambia campos del registro y repinta #diagnostico
+export function noteDiag(patch) {
+  Object.assign(diag, patch);
   notify();
 }
 
