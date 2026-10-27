@@ -29,6 +29,7 @@ function report(app, extra = []) {
     `App ${BUILD.app ?? '?'} · SDK Host ${BUILD.host ?? '?'} · Statement Store ${BUILD.statementStore ?? '?'} · códec ${BUILD.codec ?? '?'}`,
     `Modo: ${host ? 'Statement Store (Host)' : `demostración — ${whyLocal(app.t)}`}`,
     ...(host ? [`Cuenta de publicación: ${STATUS[app.t.status] ?? '?'} · permiso: ${diag.allowance ?? 'pendiente'}`] : []),
+    ...(host && diag.feed ? [`Lectura de respaldo (RPC público): ${diag.feed.state}${diag.feed.url ? ` · ${new URL(diag.feed.url).hostname}` : ''}${diag.feed.why ? ` · ${diag.feed.why}` : ''}${diag.feed.error ? ` · ${diag.feed.error}` : ''}`] : []),
     ...(diag.reason ? [`Motivo: ${diag.reason}`] : []),
     ...(app.stage ? [app.stage.report()] : ['3D: sin WebGL (se usa la tabla en 2D)']),
     'Arranque:',
