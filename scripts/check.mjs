@@ -14,7 +14,7 @@ globalThis.__PREVIEW__ = true;
 
 // Códec del protocolo Host↔app que hablan hoy la Polkadot App (iOS) y Polkadot Desktop 0.1.3.
 // Súbelo solo después de medirlo en un teléfono real (docs/deploy.md).
-const HOST_CODEC = 1;
+const HOST_CODEC = 3;
 
 const ROOT = path.resolve(process.argv[2] || process.env.ROOT || path.join(path.dirname(fileURLToPath(import.meta.url)), '..'));
 const rel = (f) => path.relative(ROOT, f).split(path.sep).join('/');
@@ -197,7 +197,7 @@ await check('package.json y CI', ({ fail }) => {
   if (exists('LICENSE') && !/^MIT License/.test(read('LICENSE'))) fail('LICENSE no es MIT');
   // El SDK del Host debe hablar el mismo códec que la Polkadot App: con otro, el Host «conecta» pero
   // no contesta y la app se queda cargando. Por eso se fija exacto (sin ^) y se comprueba el códec instalado.
-  for (const name of ['@parity/product-sdk-host', '@parity/product-sdk-statement-store', '@parity/product-sdk-signer']) {
+  for (const name of ['@parity/product-sdk-host', '@parity/product-sdk-statement-store', '@parity/product-sdk-signer', 'polkadot-api']) {
     const v = pkg.dependencies?.[name];
     if (!v || !/^\d+\.\d+\.\d+$/.test(v)) fail(`${name} debe fijarse en una versión exacta (sin ^ ni ~); ver docs/deploy.md#compatibilidad-con-el-host`);
   }

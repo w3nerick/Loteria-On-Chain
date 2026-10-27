@@ -58,6 +58,7 @@ export class HostTransport {
     this.client = new StatementStoreClient(
       this.sdkTransport ? { appName: APP_NAME, transport: this.sdkTransport } : { appName: APP_NAME },
     );
+    // Desde el SDK 0.7 `connect` no devuelve un resultado: lanza si no puede abrir el transporte
     const conn = await step('Conectar el cliente del Statement Store', () => this.client.connect({ mode: 'host' }), 8000);
     if (!conn.ok) {
       try {
