@@ -105,14 +105,18 @@ export async function loadIdentity() {
     identityNote = 'fuera de la Polkadot App';
     return null;
   }
+  // El Host puede mostrar un cuadro para compartir la identidad (SDK 0.39): tiempo de diálogo, no de consulta
+  let why = 'tu cuenta no tiene username';
   try {
-    const u = await withTimeout(manager.getUserId(), 8000, 'tu username');
+    const u = await withTimeout(manager.getUserId(), SUBMIT_MS, 'tu username');
     username = u?.ok ? u.value.primaryUsername || null : null;
-  } catch {
+    if (!u?.ok) why = `la Polkadot App no entregó tu username: ${describeError(u?.error)}`;
+  } catch (e) {
     username = null;
+    why = `la Polkadot App no entregó tu username (${describeError(e)}); ¿aprobaste compartir tu identidad?`;
   }
   if (!username) {
-    identityNote = 'tu cuenta no tiene username';
+    identityNote = why;
     return null;
   }
   try {
