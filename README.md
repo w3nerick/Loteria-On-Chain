@@ -26,9 +26,26 @@ Los mensajes viajan por el Statement Store de Polkadot: no hay servidor.
 
 Más: [portada](docs/img/01-portada-escritorio.png) · [tableta](docs/img/08-tableta-juego.png) · [configuración del cantor](docs/img/09-cantor-configuracion.png).
 
+## En el Bootcamp + Hackathon Polkadot × UANL
+
+El **29 de octubre de 2026**, primer día del evento en la Facultad de Contaduría Pública y Administración, la sala
+jugó con la Lotería: la pantalla grande cantaba y cada asistente jugaba su tabla desde su Polkadot App. Los
+ganadores se llevaron **merch** del evento. Todo quedó en la cadena (leído del contrato `LoteriaRegistry` el 3 nov):
+
+| | |
+|---:|---|
+| **6** | partidas «Bootcamp 1» guardadas en Asset Hub |
+| **152** | resultados de jugadores (24 a 26 por partida) |
+| **127** | resultados **firmados** desde el teléfono de cada jugador |
+| **27** | cuentas distintas de asistentes |
+
+Primera partida del evento: [bloque 15,077,163](https://assethub-paseo.subscan.io/block/15077163) ·
+contrato [`0x1ffee4…44ce`](https://assethub-paseo.subscan.io/account/0x1ffee4d43c109a5c91c1c1296b93cf6da4c744ce) ·
+cómo se ve cada ronda en la app: [Historial en la cadena](#historial-en-la-cadena).
+
 ## Índice
 
-[Qué es](#qué-es) · [Cómo se juega](#cómo-se-juega) · [Inicio rápido](#inicio-rápido) · [Estructura](#estructura) · [Verificación](#verificación) · [Salas grandes](#salas-grandes-25-jugadores-o-más) · [Juego limpio](#juego-limpio) · [Historial en la cadena](#historial-en-la-cadena) · [Publicar](#publicar) · [Documentación](#documentación) · [Pendientes](#pendientes) · [Licencia y créditos](#licencia-y-créditos)
+[En el Bootcamp UANL](#en-el-bootcamp--hackathon-polkadot--uanl) · [Qué es](#qué-es) · [Cómo se juega](#cómo-se-juega) · [Una ronda por dentro](#una-ronda-por-dentro) · [Inicio rápido](#inicio-rápido) · [Estructura](#estructura) · [Verificación](#verificación) · [Salas grandes](#salas-grandes-25-jugadores-o-más) · [Juego limpio](#juego-limpio) · [Historial en la cadena](#historial-en-la-cadena) · [Publicar](#publicar) · [Documentación](#documentación) · [Pendientes](#pendientes) · [Licencia y créditos](#licencia-y-créditos)
 
 ## Qué es
 
@@ -62,6 +79,40 @@ Atajos del cantor: `Espacio` pausa · `→` siguiente carta · `V` verificar tab
 (6 caracteres): en la pantalla grande usa **Verificar tabla**, escríbelo y declara al ganador. **Quien llega
 tarde** puede jugar: si gana, el cantor ve su tabla y la aprueba o la rechaza. **Si se recarga la pantalla del
 cantor**, entra a **Ser el cantor → Retomar sala** (conserva baraja sellada, cartas y tablas registradas).
+
+## Una ronda por dentro
+
+No hay servidor: la pantalla del cantor y los teléfonos se hablan por el **Statement Store** de Polkadot (mensajes
+de menos de 480 bytes que el Host de la Polkadot App reparte). Solo el final de la ronda va a un contrato.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant K as Cantor (pantalla grande, Polkadot Desktop)
+  participant SS as Statement Store
+  actor J as Jugador (Polkadot App)
+  participant C as LoteriaRegistry (Asset Hub)
+  K->>SS: abre la sala: código de 4 letras
+  J->>SS: registro: hash de su tabla, nunca la tabla
+  K->>SS: compromiso SHA-256 de la semilla secreta
+  loop cada N segundos
+    K->>SS: estado con todas las cartas cantadas
+    SS-->>J: la tabla 3D marca la carta (frijolito)
+  end
+  J->>SS: «¡Lotería!»: revela el código de su tabla
+  K->>K: verifica la figura contra las cartas cantadas
+  K->>SS: ganador + revela la semilla
+  J->>J: comprueba compromiso y orden de la baraja
+  J->>SS: resultado (tabla y casillas marcadas)
+  J->>J: «Firmar mi resultado»: firma sr25519, gratis, sin transacción
+  J->>SS: resultado firmado
+  K->>C: «Guardar en la cadena»: sellar() y agregar() (50 jugadores por transacción)
+  Note over K,C: Las comisiones las paga el Host con PGAS y el depósito sale de la cuenta de la app del cantor
+  J->>C: Historial: lee la ronda y verifica semilla, firmas y casillas en el teléfono
+```
+
+Detalle del protocolo en [`docs/arquitectura.md`](docs/arquitectura.md) y del historial en
+[`docs/historial.md`](docs/historial.md).
 
 ## Inicio rápido
 
@@ -182,10 +233,33 @@ Hub con **Guardar en la cadena**, y la pantalla **Historial** muestra cada ronda
 compromiso, firma de cada jugador y casillas contra cartas cantadas. Detalle, formato y despliegue del
 contrato en [`docs/historial.md`](docs/historial.md).
 
+Así se ven las partidas del evento en la pantalla **Historial** (`#historial`), leídas de la cadena y verificadas
+en el propio dispositivo (se taparon los apodos de los asistentes):
+
+| Rondas guardadas | Una partida: semilla, orden y firmas verificadas | En el teléfono |
+|---|---|---|
+| ![Historial: rondas guardadas](docs/img/10-historial-rondas.png) | ![Historial: detalle de una partida del evento](docs/img/11-historial-ronda.png) | ![Historial en el teléfono](docs/img/12-historial-ronda-movil.png) |
+
+Dentro de la Polkadot App, cada paso que toca la cuenta del usuario lo aprueba el Host:
+
+| Paso | Quién | Qué pide el Host | Costo |
+|---|---|---|---|
+| Entrar a la sala | jugador y cantor | permiso para publicar en el Statement Store (la primera vez) | nada |
+| «Firmar mi resultado» | jugador | firmar un texto con la cuenta de la app (no es transacción) | nada |
+| «Guardar en la cadena» | cantor, en Polkadot Desktop | permiso de gas y aprobar la transacción en el teléfono | comisión en PGAS, depósito en PAS |
+| Ver el Historial | cualquiera | nada: solo lee el contrato | nada |
+
 ## Publicar
 
 Destino: Products Devnet con `pad` 0.22.1 → `loteria-mexicana-on-chain.dot` (detalle, requisitos y advertencias en
-[`docs/deploy.md`](docs/deploy.md)):
+[`docs/deploy.md`](docs/deploy.md)).
+
+**Desde el 27 oct 2026 el nombre (y `app.`) es de la cuenta del organizador**, no del worker de `pad`, así que
+`npm run deploy` ya no puede actualizarlo. Para una versión nueva: subir el build a un **nombre temporal** con el
+*pool* de `pad` y apuntar el nombre al CID nuevo desde el teléfono (`reparador-dotns-bidc.dot` → «Apuntar versión»,
+que cambia la raíz y `app.` en una firma). Receta completa en [`docs/deploy.md`](docs/deploy.md#versión-nueva-con-el-nombre-ya-traspasado).
+
+Antes del traspaso (o con un nombre nuevo del worker):
 
 ```bash
 pad login                      # interactivo: escanea el QR con tu Polkadot App
@@ -207,10 +281,10 @@ en Bulletin caduca a los ~14 días: republica la semana del evento.
 
 ## Pendientes
 
-- [ ] Piloto con teléfonos reales (5 → 15–20 → 30) en el Wi-Fi del recinto; es lo único que valida el Statement Store real.
-- [ ] Republicar la semana del evento (Bulletin caduca a los ~14 días).
-- [ ] Confirmar que el Host concede `StatementStoreAllowance` a ~100 cuentas a la vez.
-- [ ] Probar el sello del historial desde Polkadot Desktop y la firma desde varios teléfonos (`LoteriaRegistry` ya está desplegado).
+- [x] Sala real con teléfonos de asistentes: 24 a 26 jugadores por partida en el Bootcamp UANL (29 oct 2026).
+- [x] Sello del historial desde Polkadot Desktop y firma desde varios teléfonos: 6 partidas, 127 resultados firmados.
+- [ ] Confirmar que el Host concede `StatementStoreAllowance` a ~100 cuentas a la vez (en el evento fueron ~26).
+- [ ] Republicar antes de que caduque en Bulletin (~14 días después de cada publicación).
 - [ ] Idea: QR con la dirección `.dot` en la pantalla del cantor para entrar más rápido.
 
 ## Licencia y créditos

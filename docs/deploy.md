@@ -40,6 +40,27 @@ ficha y `app.` sin firmas en el teléfono.
   `pad transfer loteria-mexicana-on-chain.dot --env devnet` (lo firma el worker). Desde ahí ya no se puede actualizar la ficha.
 - `loteria-mexicana-onchain.dot` (27 oct) quedó a nombre de la sesión y sin ficha: por eso la app pasó a este nombre.
 
+
+## Versión nueva con el nombre ya traspasado
+
+Desde el 27 oct 2026 `loteria-mexicana-on-chain.dot` y `app.loteria-mexicana-on-chain.dot` son de la cuenta del
+organizador. `pad` ya no les puede escribir. Receta (probada el 3 nov 2026 con Certificados en Cadena, la misma de la
+skill `polkadot-products-devnet`, `references/publicar.md`):
+
+1. `npm run build`.
+2. Revisar que la cuenta del *pool* de `pad` tenga autorización en Bulletin (el 3 nov solo `//deploy/0`, hasta ~14 nov).
+3. Config temporal fuera del repo: la misma de `polkadot-app-deploy.config.mjs`, pero con `domain` = un nombre
+   temporal nuevo y rutas absolutas. Para conservar la ficha, `icon` = el mismo `icon.png` (mismo CID).
+4. Subir:
+   ```bash
+   BULLETIN_POOL_ACCOUNT_INDEX=0 HOME="$(mktemp -d)" PAD_ENV=devnet \
+     pad dist <temporal>.dot --env devnet --js-merkle --config <config-temporal>.mjs
+   ```
+   `pad` imprime el **CID** de la versión.
+5. En el teléfono, con la cuenta dueña: `reparador-dotns-bidc.dot` → «Apuntar versión» con ese CID (raíz + `app.`,
+   una firma). Para cambiar el ícono: `dotns.dot` → *My Domains* → *Edit* → registro `manifest`.
+6. Comprobar: `dotns content view loteria-mexicana-on-chain --env devnet` (y `app.loteria-mexicana-on-chain`).
+
 ## Pasos
 
 ```bash
