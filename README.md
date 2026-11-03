@@ -12,6 +12,8 @@ Los mensajes viajan por el Statement Store de Polkadot: no hay servidor.
 ![Salas](https://img.shields.io/badge/probado%20hasta-250%20jugadores%20simulados-FFB000)
 ![Licencia](https://img.shields.io/badge/licencia-MIT-blue)
 
+**Jugar:** abre `loteria-mexicana-on-chain.dot` en la Polkadot App · en el navegador: https://loteria-mexicana-on-chain.dev-dot.li
+
 <img src="docs/img/02-cantor-sala-100-jugadores.png" alt="Pantalla del cantor con 89 jugadores" width="900">
 
 </div>
@@ -63,7 +65,7 @@ cómo se ve cada ronda en la app: [Historial en la cadena](#historial-en-la-cade
 
 ## Cómo se juega
 
-1. **Cantor:** abre la app en la pantalla grande (Polkadot Desktop, o `dot.li` en el navegador) y toca
+1. **Cantor:** abre la app en la pantalla grande (Polkadot Desktop, o https://loteria-mexicana-on-chain.dev-dot.li en el navegador) y toca
    **Ser el cantor**. Elige figura y ritmo, y abre la sala: aparece un código de 4 letras.
 2. **Jugadores:** abren la app en su Polkadot App, tocan **Jugar con mi tabla** y eligen la sala (o
    escriben el código). Cada tabla queda registrada con el cantor.
