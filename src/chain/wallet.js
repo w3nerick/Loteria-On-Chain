@@ -3,7 +3,7 @@
 // - Cuenta de la app (`SignerManager`): la que el Host deriva para
 //   loteria-mexicana-on-chain.dot. Con ella cada jugador firma su resultado: no gasta
 //   nada y no hace falta saldo.
-// - Identidad .dot: la dueña del username en People chain. El cantor puede
+// - Identidad .dot: la dueña del username (People chain o DotnsGateway en Asset Hub). El cantor puede
 //   pagar el sello con ella si la cuenta de la app no tiene saldo.
 //
 // Fuera del contenedor (navegador) se usa una cuenta de desarrollo: sirve para
@@ -15,13 +15,20 @@ import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 import { withTimeout } from '../net/timeout.js';
 import { CONFIG } from '../config.js';
 import { PEOPLE_GENESIS, PEOPLE_WS } from './network.js';
-import { askRemote } from './client.js';
+import { askRemote, withReadClient } from './client.js';
 
 const SUBMIT_MS = 90000; // la persona tiene que ir a su teléfono y aprobar
 const QUERY_MS = 15000;
 
+// Pipeline de extensiones con que se firman las transacciones de Asset Hub. Desde el runtime
+// 2005005 (5 nov 2026) hay dos: el 0 (el que usa el SDK por defecto) solo cobra en PAS, y el 1
+// trae AsPgas, donde ChargePGAS cobra la comisión en PGAS (si la cuenta no tiene PGAS, en PAS).
+// El depósito de almacenamiento del contrato sale de PAS en los dos.
+const TX_EXT_VERSION = 1;
+
 let manager = null;
 let appKey = null;
+let appSigner = null;
 let identity = null;
 let identityNote = null;
 let username = null;
@@ -65,6 +72,14 @@ export function connectWallet() {
     if (!acc) throw new Error(inside ? 'La Polkadot App no entregó ninguna cuenta.' : 'No hay cuenta de ensayo.');
     manager.selectAccount(acc.address);
     appKey = { address: acc.address, pubkey: hex(acc.publicKey) };
+    // La cuenta de la app firma en el pipeline 1 (PGAS); fuera del contenedor, la de ensayo.
+    // SignerManager.getSigner() siempre usa el pipeline 0: el firmante se pide al proveedor del Host.
+    if (inside) {
+      const ap = await withTimeout(host.getAccountsProvider(), 8000, 'proveedor de cuentas');
+      appSigner = ap.getProductAccountSigner({ dotNsIdentifier: CONFIG.dotName, derivationIndex: 0, publicKey: acc.publicKey }, { txExtVersion: TX_EXT_VERSION });
+    } else {
+      appSigner = manager.getSigner();
+    }
     return appKey;
   })();
   connecting.catch(() => (connecting = null));
@@ -80,7 +95,7 @@ export async function signText(text) {
 }
 
 // --- identidad .dot (solo para pagar el sello) ---------------------------------------------
-async function usernameOwner(name) {
+async function peopleOwner(name) {
   const host = await hostSdk();
   const query = async (client) => {
     const q = client.getUnsafeApi().query.Resources.UsernameOwnerOf.getValue(utf8ToBytes(name));
@@ -95,6 +110,21 @@ async function usernameOwner(name) {
     await askRemote();
   }
   return query(createClient(getWsProvider(PEOPLE_WS)));
+}
+
+// Hosts con TrUAPI 0.26+ (nov 2026) leen los usernames de DotnsGateway en Asset Hub, no de People
+// chain: una cuenta restaurada puede tener ahí otro nombre lite que People chain no conoce.
+async function assetHubOwner(name) {
+  return withReadClient(async (client) => {
+    const q = client.getUnsafeApi().query.DotnsGateway.LiteLabelOwner.getValue(utf8ToBytes(name));
+    const ss58 = await withTimeout(q, QUERY_MS, 'Asset Hub');
+    return ss58 ? hex(AccountId().enc(ss58)) : null;
+  });
+}
+
+async function usernameOwner(name) {
+  const fromPeople = await peopleOwner(name).catch(() => null);
+  return fromPeople ?? (await assetHubOwner(name));
 }
 
 export async function loadIdentity() {
@@ -122,15 +152,15 @@ export async function loadIdentity() {
   try {
     const owner = await usernameOwner(username);
     if (!owner) {
-      identityNote = `${username} no aparece en People chain`;
+      identityNote = `${username} no aparece en People chain ni en Asset Hub`;
       return null;
     }
     const ap = await withTimeout(host.getAccountsProvider(), 8000, 'proveedor de cuentas');
     const publicKey = hexToBytes(owner.slice(2));
-    identity = { address: AccountId().dec(publicKey), pubkey: owner, signer: ap.getLegacyAccountSigner({ publicKey, name: username }) };
+    identity = { address: AccountId().dec(publicKey), pubkey: owner, signer: ap.getLegacyAccountSigner({ publicKey, name: username }, { txExtVersion: TX_EXT_VERSION }) };
     return identity;
   } catch (e) {
-    identityNote = `no se pudo consultar People chain (${describeError(e)})`;
+    identityNote = `no se pudo consultar de quién es ${username} (${describeError(e)})`;
     return null;
   }
 }
@@ -138,7 +168,7 @@ export async function loadIdentity() {
 // La cuenta de la app paga primero (como polka-man.dot): no pide tu identidad
 export async function appPayer() {
   await connectWallet();
-  return { kind: 'app', address: appKey.address, signer: manager.getSigner() };
+  return { kind: 'app', address: appKey.address, signer: appSigner };
 }
 
 // La identidad solo se pide si la cuenta de la app no alcanza (el Host muestra un cuadro)
